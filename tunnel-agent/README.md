@@ -1,4 +1,4 @@
-# AgentHub Tunnel Agent
+# AgentArms Tunnel Agent
 
 Reverse tunnel for MCP servers in private networks — like ngrok but MCP-native.
 
@@ -7,12 +7,12 @@ Reverse tunnel for MCP servers in private networks — like ngrok but MCP-native
 Your MCP server runs inside a private subnet (VPC, office LAN, home network). It can
 reach the public internet (outbound) but cannot receive inbound connections. You want
 Cursor / Claude / any MCP client running anywhere to call this server via a public
-AgentHub registry.
+AgentArms registry.
 
 ## How it works
 
 ```
-Public Registry (AgentHub)
+Public Registry (AgentArms)
        ▲
        │ WebSocket (outbound from agent)
        │
@@ -22,7 +22,7 @@ Public Registry (AgentHub)
   Your MCP Server (http://localhost:8080)
 ```
 
-1. Register your server in the AgentHub UI and click "Enable Tunnel" to generate a token.
+1. Register your server in the AgentArms UI and click "Enable Tunnel" to generate a token.
 2. Run this agent inside your private network with that token.
 3. The agent opens a persistent WebSocket to the registry. No inbound firewall rule needed.
 4. When a client calls your server via the registry's Gateway, the registry forwards

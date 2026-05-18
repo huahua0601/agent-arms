@@ -1,6 +1,6 @@
-# AgentHub — Enterprise AI Agent Capability Hub
+# AgentArms — Enterprise AI Agent Capability Hub
 
-AgentHub is an enterprise-grade platform for discovering, registering, managing and monitoring **MCP (Model Context Protocol) servers**, **Agent Skills**, and **REST API-based tools** — with built-in governance, access control and observability.
+AgentArms is an enterprise-grade platform for discovering, registering, managing and monitoring **MCP (Model Context Protocol) servers**, **Agent Skills**, and **REST API-based tools** — with built-in governance, access control and observability.
 
 ## Key Features
 

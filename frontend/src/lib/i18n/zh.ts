@@ -56,7 +56,7 @@ export const zh = {
   },
   dashboard: {
     title: "欢迎回来",
-    subtitle: "以下是今天的 AgentHub 概览。",
+    subtitle: "以下是今天的 AgentArms 概览。",
     servers: "MCP 服务",
     running_instances: "运行实例",
     total_users: "用户数量",
@@ -185,7 +185,7 @@ export const zh = {
     subtitle: "账户与平台配置",
     account: "账户信息",
     platform: "平台信息",
-    platform_name: "AgentHub v1.0.0",
+    platform_name: "AgentArms v1.0.0",
     architecture: "4 个模块（认证、注册、运行时、审计）",
     super_admin: "超级管理员",
     yes: "是",
@@ -218,7 +218,7 @@ export const zh = {
     },
   },
   brand: {
-    name: "AgentHub",
+    name: "AgentArms",
     tagline: "企业级 AI Agent 能力中心",
     tagline_desc: "发现、注册、管理和监控 MCP 服务、Agent 技能和 REST API —— 具备企业级治理、访问控制和可观测性。",
     access_control: "访问控制",

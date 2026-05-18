@@ -56,7 +56,7 @@ export const en = {
   },
   dashboard: {
     title: "Welcome back",
-    subtitle: "Here's your AgentHub overview for today.",
+    subtitle: "Here's your AgentArms overview for today.",
     servers: "MCP Servers",
     running_instances: "Running Instances",
     total_users: "Total Users",
@@ -185,7 +185,7 @@ export const en = {
     subtitle: "Account and platform configuration",
     account: "Account Information",
     platform: "Platform Info",
-    platform_name: "AgentHub v1.0.0",
+    platform_name: "AgentArms v1.0.0",
     architecture: "4 Modules (Auth, Registry, Runtime, Audit)",
     super_admin: "Super Admin",
     yes: "Yes",
@@ -218,7 +218,7 @@ export const en = {
     },
   },
   brand: {
-    name: "AgentHub",
+    name: "AgentArms",
     tagline: "Enterprise AI Agent Capability Hub",
     tagline_desc: "Discover, register, manage and monitor MCP servers, Agent skills and REST APIs — with enterprise-grade governance, access control and observability.",
     access_control: "Access Control",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AgentHub Tunnel Agent - reverse tunnel for private-network MCP servers.
+"""AgentArms Tunnel Agent - reverse tunnel for private-network MCP servers.
 
 Usage:
     python agent.py --registry wss://registry.example.com --token tnl_xxx --local http://localhost:8080
@@ -212,7 +212,7 @@ class TunnelAgent:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AgentHub Tunnel Agent")
+    parser = argparse.ArgumentParser(description="AgentArms Tunnel Agent")
     parser.add_argument("--registry", required=True, help="Registry URL (e.g., https://registry.example.com)")
     parser.add_argument("--token", required=True, help="Tunnel token from registry")
     parser.add_argument("--local", required=True, help="Local MCP server URL (e.g., http://localhost:8080/mcp)")

@@ -1,4 +1,4 @@
-"""AgentHub — unified backend entry point."""
+"""AgentArms — unified backend entry point."""
 import uuid
 import logging
 import time
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title="AgentHub", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="AgentArms", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
