@@ -62,19 +62,20 @@ function LoginInner() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f7fa] dark:bg-[#171c23] relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(93,135,255,0.08)_0%,_transparent_60%)]" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 via-white to-teal-50 dark:from-[#0f172a] dark:via-[#1e293b] dark:to-[#0f172a] relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(6,182,212,0.08)_0%,_transparent_50%),radial-gradient(ellipse_at_bottom_left,_rgba(16,185,129,0.06)_0%,_transparent_50%)]" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-b from-cyan-200/20 to-transparent rounded-full blur-3xl" />
       <div className="absolute top-6 right-6">
         <Button variant="outline" size="sm" onClick={() => setLocale(locale === "zh" ? "en" : "zh")} className="text-xs h-8 rounded-xl">
           {locale === "zh" ? "English" : "中文"}
         </Button>
       </div>
 
-      <Card className="w-full max-w-[440px] mx-4 rounded-2xl border border-border shadow-lg relative z-10">
+      <Card className="w-full max-w-[440px] mx-4 rounded-2xl border border-border/50 shadow-xl shadow-cyan-500/5 backdrop-blur-sm relative z-10">
         <CardContent className="p-8">
           <div className="flex items-center gap-3 mb-8">
-            <div className="h-11 w-11 rounded-xl bg-primary flex items-center justify-center">
-              <Server className="h-5 w-5 text-primary-foreground" />
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <Server className="h-5 w-5 text-white" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">{t.brand.name}</h1>
@@ -119,7 +120,7 @@ function LoginInner() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm" disabled={loading}>
+            <Button type="submit" className="w-full h-11 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-semibold text-sm shadow-lg shadow-cyan-500/20" disabled={loading}>
               {loading ? <span className="flex items-center gap-2"><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />{t.auth.signing_in}</span> : t.auth.sign_in}
             </Button>
           </form>

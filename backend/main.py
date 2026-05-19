@@ -38,6 +38,7 @@ from domain.cli.router import router as cli_router
 from domain.registry.rest_to_mcp import router as rest_to_mcp_router
 from domain.tunnel.router import router as tunnel_router, ws_router as tunnel_ws_router
 from domain.auth.service import seed_data
+from domain.registry.seed_aiops import seed_aiops_servers
 from domain.audit.service import create_log
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,10 @@ async def lifespan(app: FastAPI):
     async with async_session() as db:
         await seed_data(db)
     logger.info("Seed data initialized")
+
+    async with async_session() as db:
+        await seed_aiops_servers(db)
+    logger.info("AIOps MCP servers registered")
 
     redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     yield

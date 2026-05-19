@@ -50,15 +50,15 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
   return (
     <aside className={cn(
-      "flex flex-col h-screen bg-card border-r border-border transition-all duration-300 ease-in-out shrink-0 z-50 shadow-[1px_0_2px_0_rgba(0,0,0,0.05)]",
+      "flex flex-col h-screen bg-white/80 dark:bg-card/80 backdrop-blur-xl border-r border-border/50 transition-all duration-300 ease-in-out shrink-0 z-50",
       collapsed ? "w-[70px]" : "w-[270px]"
     )}>
       {/* User Card */}
       {!collapsed ? (
         <div className="p-5 pb-4">
-          <div className="flex items-center gap-3 rounded-xl bg-primary/[0.08] p-3">
-            <Avatar className="h-10 w-10 shrink-0 border-2 border-primary/20">
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+          <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-cyan-50 to-teal-50 dark:from-cyan-950/30 dark:to-teal-950/30 p-3 border border-cyan-100/50 dark:border-cyan-900/30">
+            <Avatar className="h-10 w-10 shrink-0 ring-2 ring-cyan-200 dark:ring-cyan-800">
+              <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-teal-500 text-white text-sm font-bold">
                 {user?.username?.[0]?.toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
@@ -70,8 +70,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         </div>
       ) : (
         <div className="flex justify-center py-4">
-          <Avatar className="h-9 w-9 border-2 border-primary/20">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+          <Avatar className="h-9 w-9 ring-2 ring-cyan-200 dark:ring-cyan-800">
+            <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-teal-500 text-white text-xs font-bold">
               {user?.username?.[0]?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
