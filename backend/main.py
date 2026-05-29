@@ -37,6 +37,8 @@ from domain.review.router import router as review_router
 from domain.cli.router import router as cli_router
 from domain.registry.rest_to_mcp import router as rest_to_mcp_router
 from domain.tunnel.router import router as tunnel_router, ws_router as tunnel_ws_router
+from domain.memory.router import router as memory_router
+from domain.agentcore.identity_router import router as identity_router
 from domain.auth.service import seed_data
 from domain.registry.seed_aiops import seed_aiops_servers
 from domain.audit.service import create_log
@@ -76,6 +78,11 @@ async def lifespan(app: FastAPI):
     async with async_session() as db:
         await seed_aiops_servers(db)
     logger.info("AIOps MCP servers registered")
+
+    # Initialize AgentCore Observability (OTEL)
+    from domain.agentcore.observability_adapter import init_observability
+    init_observability()
+    logger.info("Observability initialized")
 
     redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     yield
@@ -140,8 +147,15 @@ app.include_router(cli_router)
 app.include_router(rest_to_mcp_router)
 app.include_router(tunnel_router)
 app.include_router(tunnel_ws_router)
+app.include_router(memory_router)
+app.include_router(identity_router)
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "agenthub"}
+    from domain.agentcore import is_agentcore_enabled
+    return {
+        "status": "ok",
+        "service": "agent-arms",
+        "agentcore_enabled": is_agentcore_enabled(),
+    }

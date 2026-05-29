@@ -1,4 +1,8 @@
-"""Gateway proxy router — unified MCP endpoint with header-based routing."""
+"""Gateway proxy router — unified MCP endpoint with header-based routing.
+
+When AgentCore is enabled, MCP requests are routed through AWS Bedrock AgentCore Gateway.
+Otherwise, falls back to the self-hosted direct proxy.
+"""
 import time
 import json
 import asyncio
@@ -15,6 +19,7 @@ from domain.registry.models import McpServer
 from domain.registry.mcp_client import _resolve_url, _build_headers, _parse_sse
 from domain.gateway.auth import authenticate_gateway_request
 from domain.gateway.models import GatewayCallLog
+from domain.agentcore import is_agentcore_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +32,9 @@ async def gateway_proxy(request: Request, db: AsyncSession = Depends(get_db)):
 
     Routing: X-MCP-Server header specifies the target server namespace.
     Auth: Authorization: Bearer <api_key> using registry API keys.
+
+    When AgentCore is enabled, requests are delegated to AWS AgentCore Gateway
+    for managed routing, auth, throttling, and observability.
     """
     user_id, username, api_key_id = await authenticate_gateway_request(request, db)
 
@@ -41,80 +49,125 @@ async def gateway_proxy(request: Request, db: AsyncSession = Depends(get_db)):
     if not server:
         raise HTTPException(status_code=404, detail=f"MCP server '{server_ns}' not found")
 
-    # For tunnel-enabled servers, route via reverse WebSocket
+    body_bytes = await request.body()
+    try:
+        rpc_body = json.loads(body_bytes) if body_bytes else {}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    method_name = rpc_body.get("method", "")
+    tool_name = rpc_body.get("params", {}).get("name") if method_name == "tools/call" else None
+
+    # --- AgentCore Gateway routing ---
+    if is_agentcore_enabled():
+        return await _route_via_agentcore(
+            request, server, server_ns, rpc_body, body_bytes,
+            method_name, tool_name, user_id, username, api_key_id,
+        )
+
+    # --- Self-hosted routing (fallback) ---
+
+    # Tunnel-enabled servers: route via reverse WebSocket
     if server.tunnel_enabled:
-        from domain.tunnel.manager import tunnel_registry
-        conn = tunnel_registry.get(server.id)
-        if not conn:
-            raise HTTPException(status_code=503, detail=f"Tunnel agent for '{server_ns}' is offline")
-
-        body_bytes = await request.body()
-        try:
-            rpc_body = json.loads(body_bytes) if body_bytes else {}
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON body")
-
-        method_name = rpc_body.get("method", "")
-        tool_name = rpc_body.get("params", {}).get("name") if method_name == "tools/call" else None
-
-        import time as _time
-        start = _time.time()
-        try:
-            resp_body = await conn.call(rpc_body, timeout=60.0)
-            latency_ms = round((_time.time() - start) * 1000, 2)
-            response_status = "error" if "error" in resp_body else "success"
-            error_message = None
-            if "error" in resp_body and isinstance(resp_body["error"], dict):
-                error_message = resp_body["error"].get("message", "")[:500]
-        except asyncio.TimeoutError:
-            raise HTTPException(status_code=504, detail="Tunnel request timeout")
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Tunnel error: {e}")
-
-        # Log the call
-        try:
-            async with async_session() as log_db:
-                log = GatewayCallLog(
-                    user_id=user_id, username=username, api_key_id=api_key_id,
-                    server_id=server.id, server_namespace=server.namespace,
-                    method=method_name, tool_name=tool_name,
-                    request_params={"_tunnel": True},
-                    response_status=response_status, error_message=error_message,
-                    latency_ms=latency_ms,
-                    request_size=len(body_bytes),
-                    response_size=len(json.dumps(resp_body)),
-                    ip_address=request.client.host if request.client else None,
-                )
-                log_db.add(log)
-                await log_db.commit()
-        except Exception as e:
-            logger.warning("Failed to log tunnel call: %s", e)
-
-        return Response(
-            content=json.dumps(resp_body),
-            media_type="application/json",
+        return await _route_via_tunnel(
+            request, server, server_ns, rpc_body, body_bytes,
+            method_name, tool_name, user_id, username, api_key_id,
         )
 
     if not server.endpoint_url:
         raise HTTPException(status_code=400, detail=f"MCP server '{server_ns}' has no endpoint configured")
 
-    # For OpenAPI-type servers, delegate to the REST-to-MCP runtime
+    # OpenAPI-type servers: delegate to REST-to-MCP runtime
     if server.source_type == "openapi" and server.openapi_spec:
         from domain.registry.rest_to_mcp import handle_rest_to_mcp
         return await handle_rest_to_mcp(server, request, user_id, username, api_key_id)
 
-    body_bytes = await request.body()
-    request_size = len(body_bytes)
+    # Direct HTTP proxy to MCP server
+    return await _route_direct_proxy(
+        request, server, server_ns, body_bytes,
+        method_name, tool_name, user_id, username, api_key_id,
+    )
 
-    method_name = None
-    tool_name = None
+
+async def _route_via_agentcore(
+    request: Request, server: McpServer, server_ns: str,
+    rpc_body: dict, body_bytes: bytes,
+    method_name: str, tool_name: Optional[str],
+    user_id: int, username: str, api_key_id: Optional[int],
+) -> Response:
+    """Route MCP request through AWS AgentCore Gateway."""
+    from domain.agentcore.gateway_adapter import get_gateway_adapter
+    from domain.agentcore.observability_adapter import trace_tool_call
+
+    adapter = get_gateway_adapter()
+    start = time.time()
+    response_status = "success"
+    error_message = None
+
+    try:
+        async with trace_tool_call(tool_name or method_name, server_ns):
+            resp_data = await adapter.route_mcp_request(server_ns, rpc_body)
+
+        if "error" in resp_data:
+            response_status = "error"
+            err = resp_data["error"]
+            error_message = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+
+        resp_body = json.dumps(resp_data).encode()
+    except Exception as e:
+        response_status = "error"
+        error_message = str(e)[:500]
+        resp_data = {"jsonrpc": "2.0", "id": rpc_body.get("id"), "error": {"code": -32000, "message": f"AgentCore Gateway error: {error_message}"}}
+        resp_body = json.dumps(resp_data).encode()
+
+    latency_ms = round((time.time() - start) * 1000, 2)
+    await _log_call(user_id, username, api_key_id, server, server_ns, method_name, tool_name, rpc_body.get("params"), response_status, error_message, latency_ms, len(body_bytes), len(resp_body), request)
+
+    return Response(content=resp_body, media_type="application/json")
+
+
+async def _route_via_tunnel(
+    request: Request, server: McpServer, server_ns: str,
+    rpc_body: dict, body_bytes: bytes,
+    method_name: str, tool_name: Optional[str],
+    user_id: int, username: str, api_key_id: Optional[int],
+) -> Response:
+    """Route MCP request through reverse WebSocket tunnel."""
+    from domain.tunnel.manager import tunnel_registry
+
+    conn = tunnel_registry.get(server.id)
+    if not conn:
+        raise HTTPException(status_code=503, detail=f"Tunnel agent for '{server_ns}' is offline")
+
+    start = time.time()
+    try:
+        resp_body = await conn.call(rpc_body, timeout=60.0)
+        latency_ms = round((time.time() - start) * 1000, 2)
+        response_status = "error" if "error" in resp_body else "success"
+        error_message = None
+        if "error" in resp_body and isinstance(resp_body["error"], dict):
+            error_message = resp_body["error"].get("message", "")[:500]
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Tunnel request timeout")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Tunnel error: {e}")
+
+    await _log_call(user_id, username, api_key_id, server, server_ns, method_name, tool_name, {"_tunnel": True}, response_status, error_message, latency_ms, len(body_bytes), len(json.dumps(resp_body)), request)
+
+    return Response(content=json.dumps(resp_body), media_type="application/json")
+
+
+async def _route_direct_proxy(
+    request: Request, server: McpServer, server_ns: str,
+    body_bytes: bytes, method_name: str, tool_name: Optional[str],
+    user_id: int, username: str, api_key_id: Optional[int],
+) -> Response:
+    """Route MCP request directly to the target server via HTTP proxy."""
+    request_size = len(body_bytes)
     request_params = None
     try:
         rpc_body = json.loads(body_bytes) if body_bytes else {}
-        method_name = rpc_body.get("method")
         params = rpc_body.get("params", {})
-        if method_name == "tools/call":
-            tool_name = params.get("name")
         request_params = _truncate_params(params)
     except (json.JSONDecodeError, AttributeError):
         pass
@@ -175,29 +228,7 @@ async def gateway_proxy(request: Request, db: AsyncSession = Depends(get_db)):
         resp_status_code = 502
 
     latency_ms = round((time.time() - start) * 1000, 2)
-
-    try:
-        async with async_session() as log_db:
-            log = GatewayCallLog(
-                user_id=user_id,
-                username=username,
-                api_key_id=api_key_id,
-                server_id=server.id,
-                server_namespace=server_ns,
-                method=method_name,
-                tool_name=tool_name,
-                request_params=request_params,
-                response_status=response_status,
-                error_message=error_message,
-                latency_ms=latency_ms,
-                request_size=request_size,
-                response_size=len(resp_body),
-                ip_address=request.client.host if request.client else None,
-            )
-            log_db.add(log)
-            await log_db.commit()
-    except Exception as e:
-        logger.warning("Failed to log gateway call: %s", e)
+    await _log_call(user_id, username, api_key_id, server, server_ns, method_name, tool_name, request_params, response_status, error_message, latency_ms, request_size, len(resp_body), request)
 
     pass_through_headers = {}
     for key in ("mcp-session-id", "content-type"):
@@ -210,6 +241,31 @@ async def gateway_proxy(request: Request, db: AsyncSession = Depends(get_db)):
         headers=pass_through_headers,
         media_type=resp_headers.get("content-type", "application/json"),
     )
+
+
+async def _log_call(
+    user_id, username, api_key_id, server, server_ns,
+    method_name, tool_name, request_params,
+    response_status, error_message, latency_ms,
+    request_size, response_size, request: Request,
+):
+    """Persist a gateway call log entry."""
+    try:
+        async with async_session() as log_db:
+            log = GatewayCallLog(
+                user_id=user_id, username=username, api_key_id=api_key_id,
+                server_id=server.id, server_namespace=server_ns,
+                method=method_name, tool_name=tool_name,
+                request_params=request_params if isinstance(request_params, dict) else None,
+                response_status=response_status, error_message=error_message,
+                latency_ms=latency_ms,
+                request_size=request_size, response_size=response_size,
+                ip_address=request.client.host if request.client else None,
+            )
+            log_db.add(log)
+            await log_db.commit()
+    except Exception as e:
+        logger.warning("Failed to log gateway call: %s", e)
 
 
 def _truncate_params(params: dict, max_len: int = 1024) -> Optional[dict]:

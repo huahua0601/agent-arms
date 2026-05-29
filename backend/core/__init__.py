@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     STORAGE_S3_BUCKET: str = "mcp-registry"
     STORAGE_S3_REGION: str = "us-east-1"
 
+    # AWS AgentCore
+    AWS_REGION: str = "us-east-1"
+    AGENTCORE_ENABLED: bool = False
+    AGENTCORE_GATEWAY_ENDPOINT: str = ""
+    AGENTCORE_RUNTIME_ENDPOINT: str = ""
+    AGENTCORE_MEMORY_NAMESPACE: str = "agent-arms"
+    AGENTCORE_IDENTITY_WORKLOAD_ID: str = ""
+    AGENTCORE_OBSERVABILITY_ENABLED: bool = False
+
     class Config:
         env_file = ".env"
 

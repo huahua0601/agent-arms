@@ -12,6 +12,7 @@ class Instance(Base):
     status = Column(String(32), default="pending"); port = Column(Integer)
     cpu_limit = Column(String(16), default="0.5"); memory_limit = Column(String(16), default="256m")
     env_vars = Column(JSON); image = Column(String(256)); command = Column(String(512))
+    runtime_type = Column(String(32), default="docker")
     started_at = Column(DateTime); stopped_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     health_checks = relationship("HealthCheck", back_populates="instance", lazy="selectin", cascade="all, delete-orphan")
