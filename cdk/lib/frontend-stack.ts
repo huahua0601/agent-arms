@@ -12,6 +12,7 @@ export interface FrontendStackProps extends cdk.StackProps {
   projectName: string;
   environment: string;
   backendService: ecs.IBaseService;
+  backendUrl: string;
 }
 
 export class FrontendStack extends cdk.Stack {
@@ -34,7 +35,7 @@ export class FrontendStack extends cdk.Stack {
         image: ecs.ContainerImage.fromDockerImageAsset(frontendImage),
         containerPort: 3000,
         environment: {
-          BACKEND_INTERNAL_URL: 'http://backend.local:8000',
+          BACKEND_INTERNAL_URL: `http://${props.backendUrl}`,
         },
         logDriver: ecs.LogDrivers.awsLogs({
           streamPrefix: 'frontend',
@@ -60,6 +61,7 @@ export class FrontendStack extends cdk.Stack {
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
       },
       additionalBehaviors: {

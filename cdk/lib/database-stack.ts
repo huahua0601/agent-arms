@@ -11,15 +11,15 @@ export interface DatabaseStackProps extends cdk.StackProps {
 }
 
 export class DatabaseStack extends cdk.Stack {
-  public readonly cluster: rds.IDatabaseCluster;
-  public readonly redis: elasticache.CfnCacheCluster;
+  public readonly cluster: rds.DatabaseCluster;
+  public readonly redis: elasticache.CfnReplicationGroup;
   public readonly dbSecurityGroup: ec2.ISecurityGroup;
   public readonly redisSecurityGroup: ec2.ISecurityGroup;
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
 
-    // PostgreSQL Aurora Serverless v2
+    // PostgreSQL Aurora with provisioned T4G instances (LTS version 16.4)
     this.dbSecurityGroup = new ec2.SecurityGroup(this, 'DbSg', {
       vpc: props.vpc,
       description: 'Security group for Aurora PostgreSQL',
@@ -28,11 +28,11 @@ export class DatabaseStack extends cdk.Stack {
 
     this.cluster = new rds.DatabaseCluster(this, 'AuroraCluster', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_15_4,
+        version: rds.AuroraPostgresEngineVersion.VER_16_4,
       }),
-      serverlessV2MinCapacity: 0.5,
-      serverlessV2MaxCapacity: 4,
-      writer: rds.ClusterInstance.serverlessV2('writer'),
+      writer: rds.ClusterInstance.provisioned('writer', {
+        instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MEDIUM),
+      }),
       vpc: props.vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [this.dbSecurityGroup],
@@ -43,29 +43,37 @@ export class DatabaseStack extends cdk.Stack {
       removalPolicy: props.environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 
-    // ElastiCache Redis
+    // ElastiCache Valkey 8.0 with T4G instance (ReplicationGroup required for Valkey)
     this.redisSecurityGroup = new ec2.SecurityGroup(this, 'RedisSg', {
       vpc: props.vpc,
-      description: 'Security group for Redis',
+      description: 'Security group for Valkey',
       allowAllOutbound: true,
     });
 
     const redisSubnetGroup = new elasticache.CfnSubnetGroup(this, 'RedisSubnetGroup', {
-      description: 'Redis subnet group',
+      description: 'Valkey subnet group',
       subnetIds: props.vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }).subnetIds,
-      cacheSubnetGroupName: `${props.projectName}-${props.environment}-redis`,
+      cacheSubnetGroupName: `${props.projectName}-${props.environment}-valkey`,
     });
 
-    this.redis = new elasticache.CfnCacheCluster(this, 'Redis', {
-      engine: 'redis',
-      cacheNodeType: 'cache.t3.micro',
-      numCacheNodes: 1,
-      vpcSecurityGroupIds: [this.redisSecurityGroup.securityGroupId],
+    this.redis = new elasticache.CfnReplicationGroup(this, 'Redis', {
+      replicationGroupDescription: `${props.projectName}-${props.environment} Valkey cluster`,
+      engine: 'valkey',
+      engineVersion: '8.0',
+      cacheNodeType: 'cache.t4g.micro',
+      numCacheClusters: 1,
+      automaticFailoverEnabled: false,
+      transitEncryptionEnabled: false,
+      securityGroupIds: [this.redisSecurityGroup.securityGroupId],
       cacheSubnetGroupName: redisSubnetGroup.cacheSubnetGroupName,
     });
     this.redis.addDependency(redisSubnetGroup);
 
+    // Allow access from private subnets (where ECS tasks run)
+    this.dbSecurityGroup.addIngressRule(ec2.Peer.ipv4(props.vpc.vpcCidrBlock), ec2.Port.tcp(5432), 'VPC to Aurora');
+    this.redisSecurityGroup.addIngressRule(ec2.Peer.ipv4(props.vpc.vpcCidrBlock), ec2.Port.tcp(6379), 'VPC to Valkey');
+
     new cdk.CfnOutput(this, 'DbEndpoint', { value: this.cluster.clusterEndpoint.hostname });
-    new cdk.CfnOutput(this, 'RedisEndpoint', { value: this.redis.attrRedisEndpointAddress });
+    new cdk.CfnOutput(this, 'RedisEndpoint', { value: this.redis.attrPrimaryEndPointAddress });
   }
 }

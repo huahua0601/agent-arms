@@ -1,6 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
+import * as path from 'path';
 import { Construct } from 'constructs';
 
 export interface AgentCoreStackProps extends cdk.StackProps {
@@ -9,14 +11,6 @@ export interface AgentCoreStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
 }
 
-/**
- * Provisions AWS Bedrock AgentCore resources:
- * - Gateway endpoint for MCP tool routing
- * - Runtime for serverless agent deployment
- * - Memory namespace for session/long-term memory
- * - Identity workload for tool credential management
- * - Observability configuration for OTEL tracing
- */
 export class AgentCoreStack extends cdk.Stack {
   public readonly gatewayEndpoint: string;
   public readonly runtimeEndpoint: string;
@@ -25,85 +19,113 @@ export class AgentCoreStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: AgentCoreStackProps) {
     super(scope, id, props);
 
-    // IAM Role for AgentCore services
     this.agentCoreRole = new iam.Role(this, 'AgentCoreRole', {
       roleName: `${props.projectName}-${props.environment}-agentcore`,
       assumedBy: new iam.CompositePrincipal(
         new iam.ServicePrincipal('bedrock.amazonaws.com'),
+        new iam.ServicePrincipal('bedrock-agentcore.amazonaws.com'),
         new iam.ServicePrincipal('lambda.amazonaws.com'),
       ),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonBedrockFullAccess'),
         iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchLogsFullAccess'),
+        iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonEC2ContainerRegistryReadOnly'),
       ],
     });
 
-    // AgentCore Gateway - provisions via Custom Resource or CloudFormation
-    // Using CfnResource for AgentCore Gateway (as CDK L2 constructs may not yet exist)
-    const gateway = new cdk.CfnResource(this, 'AgentCoreGateway', {
-      type: 'AWS::Bedrock::AgentCoreGateway',
-      properties: {
-        Name: `${props.projectName}-gateway-${props.environment}`,
-        Description: 'AgentArms MCP Gateway - routes tool calls to registered MCP servers',
-        AuthorizationConfig: {
-          Type: 'IAM',
-        },
-      },
-    });
-
-    // AgentCore Runtime configuration
-    const runtime = new cdk.CfnResource(this, 'AgentCoreRuntime', {
-      type: 'AWS::Bedrock::AgentCoreRuntime',
-      properties: {
-        AgentRuntimeName: `${props.projectName}-runtime-${props.environment}`,
-        Description: 'AgentArms Runtime - hosts MCP server containers',
-        NetworkMode: 'PUBLIC',
-        RoleArn: this.agentCoreRole.roleArn,
-      },
-    });
-
-    // AgentCore Memory namespace
+    // Memory (created first, so Runtime failure won't cancel it)
     const memory = new cdk.CfnResource(this, 'AgentCoreMemory', {
-      type: 'AWS::Bedrock::AgentCoreMemory',
+      type: 'AWS::BedrockAgentCore::Memory',
       properties: {
-        Name: `${props.projectName}-memory-${props.environment}`,
-        Namespace: props.projectName,
+        Name: `agentarmsMemory${props.environment}`,
+        Description: 'AgentArms session and long-term memory',
+        EventExpiryDuration: 30,
         MemoryStrategies: [
-          { StrategyType: 'semantic' },
-          { StrategyType: 'summarization' },
+          {
+            SemanticMemoryStrategy: {
+              Name: `agentarmsSemantic${props.environment}`,
+              Description: 'Semantic memory strategy',
+            },
+          },
+          {
+            SummaryMemoryStrategy: {
+              Name: `agentarmsSummary${props.environment}`,
+              Description: 'Summarization memory strategy',
+            },
+          },
         ],
       },
     });
 
-    // AgentCore Identity - Workload Identity
-    const identity = new cdk.CfnResource(this, 'AgentCoreIdentity', {
-      type: 'AWS::Bedrock::AgentCoreWorkloadIdentity',
+    // Gateway
+    const gateway = new cdk.CfnResource(this, 'AgentCoreGateway', {
+      type: 'AWS::BedrockAgentCore::Gateway',
       properties: {
-        Name: `${props.projectName}-identity-${props.environment}`,
-        Description: 'AgentArms workload identity for tool authentication',
+        Name: `${props.projectName}-gateway-${props.environment}`,
+        Description: 'AgentArms MCP Gateway - routes tool calls to registered MCP servers',
+        AuthorizerType: 'AWS_IAM',
+        ProtocolType: 'MCP',
+        RoleArn: this.agentCoreRole.roleArn,
       },
     });
 
-    // Outputs
-    this.gatewayEndpoint = gateway.getAtt('Endpoint').toString();
-    this.runtimeEndpoint = runtime.getAtt('Endpoint').toString();
+    // Workload Identity
+    const identity = new cdk.CfnResource(this, 'AgentCoreIdentity', {
+      type: 'AWS::BedrockAgentCore::WorkloadIdentity',
+      properties: {
+        Name: `${props.projectName}-identity-${props.environment}`,
+      },
+    });
+
+    // Runtime - depends on Memory + Gateway so they complete first
+    const runtimeImage = new ecr_assets.DockerImageAsset(this, 'RuntimeImage', {
+      directory: path.resolve(__dirname, '../../backend'),
+      platform: ecr_assets.Platform.LINUX_ARM64,
+    });
+
+    const runtime = new cdk.CfnResource(this, 'AgentCoreRuntime', {
+      type: 'AWS::BedrockAgentCore::Runtime',
+      properties: {
+        AgentRuntimeName: `agentarms_runtime_${props.environment}`,
+        Description: 'AgentArms Runtime - hosts MCP server containers',
+        RoleArn: this.agentCoreRole.roleArn,
+        AgentRuntimeArtifact: {
+          ContainerConfiguration: {
+            ContainerUri: runtimeImage.imageUri,
+          },
+        },
+        NetworkConfiguration: {
+          NetworkMode: 'PUBLIC',
+        },
+        ProtocolConfiguration: 'MCP',
+      },
+    });
+    runtime.addDependency(memory);
+    runtime.addDependency(gateway);
+
+    this.gatewayEndpoint = gateway.getAtt('GatewayUrl').toString();
+    this.runtimeEndpoint = runtime.getAtt('AgentRuntimeId').toString();
 
     new cdk.CfnOutput(this, 'GatewayEndpoint', {
       value: this.gatewayEndpoint,
       exportName: `${props.projectName}-${props.environment}-gateway-endpoint`,
     });
 
-    new cdk.CfnOutput(this, 'RuntimeEndpoint', {
+    new cdk.CfnOutput(this, 'GatewayId', {
+      value: gateway.getAtt('GatewayIdentifier').toString(),
+    });
+
+    new cdk.CfnOutput(this, 'RuntimeId', {
       value: this.runtimeEndpoint,
-      exportName: `${props.projectName}-${props.environment}-runtime-endpoint`,
+      exportName: `${props.projectName}-${props.environment}-runtime-id`,
     });
 
     new cdk.CfnOutput(this, 'MemoryId', {
       value: memory.getAtt('MemoryId').toString(),
     });
 
-    new cdk.CfnOutput(this, 'WorkloadIdentityId', {
-      value: identity.getAtt('WorkloadIdentityId').toString(),
+    new cdk.CfnOutput(this, 'WorkloadIdentityArn', {
+      value: identity.getAtt('WorkloadIdentityArn').toString(),
     });
   }
 }

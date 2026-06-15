@@ -43,6 +43,7 @@ const backend = new BackendStack(app, `${projectName}-backend-${environment}`, {
   environment,
   vpc: network.vpc,
   database: database.cluster,
+  dbSecret: database.cluster.secret!,
   redis: database.redis,
   agentCoreGatewayEndpoint: agentcore.gatewayEndpoint,
   agentCoreRuntimeEndpoint: agentcore.runtimeEndpoint,
@@ -53,6 +54,7 @@ new FrontendStack(app, `${projectName}-frontend-${environment}`, {
   projectName,
   environment,
   backendService: backend.service,
+  backendUrl: backend.loadBalancerDnsName,
 });
 
 app.synth();
