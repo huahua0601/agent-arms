@@ -94,7 +94,17 @@ async def _agentcore_create(image, name, env_vars, cpu_limit, memory_limit):
 
     runtime_id = result["runtime_id"]
 
-    endpoint_result = await adapter.create_endpoint(runtime_id, f"{name}-default")
+    for _ in range(30):
+        await asyncio.sleep(5)
+        status = await adapter.get_runtime(runtime_id)
+        if status.get("status") == "READY":
+            break
+        if status.get("status") == "FAILED":
+            raise RuntimeError(f"AgentCore Runtime failed: {status}")
+    else:
+        logger.warning(f"Runtime {runtime_id} not READY after 150s, attempting endpoint creation anyway")
+
+    endpoint_result = await adapter.create_endpoint(runtime_id, f"{name}_default")
     if "error" in endpoint_result:
         raise RuntimeError(f"AgentCore endpoint creation failed: {endpoint_result['error']}")
 
@@ -166,7 +176,8 @@ async def _create_instance_docker(db: AsyncSession, data: dict) -> Instance:
 
 async def _create_instance_agentcore(db: AsyncSession, data: dict) -> Instance:
     """Create instance using AgentCore Runtime (serverless)."""
-    name = f"mcp-{data.get('server_name', 'instance')}-{random.randint(1000, 9999)}"
+    server_name = data.get('server_name', 'instance').replace('-', '_').replace(' ', '_')
+    name = f"mcp_{server_name}_{random.randint(1000, 9999)}"
 
     inst = Instance(
         server_id=data["server_id"],

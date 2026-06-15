@@ -18,7 +18,6 @@ from domain.runtime.models import *   # noqa: F401, F403
 from domain.audit.models import *     # noqa: F401, F403
 from domain.skill.models import *     # noqa: F401, F403
 from domain.gateway.models import *   # noqa: F401, F403
-from domain.team.models import *      # noqa: F401, F403
 from domain.review.models import *    # noqa: F401, F403
 from domain.tunnel.models import *    # noqa: F401, F403
 
@@ -32,11 +31,10 @@ from domain.skill.public_api import router as public_registry_router
 from domain.registry.public_api import router as public_mcp_router
 from domain.gateway.router import router as gateway_proxy_router
 from domain.gateway.service import stats_router as gateway_stats_router
-from domain.team.router import router as team_router
 from domain.review.router import router as review_router
 from domain.cli.router import router as cli_router
 from domain.registry.rest_to_mcp import router as rest_to_mcp_router
-from domain.tunnel.router import router as tunnel_router, ws_router as tunnel_ws_router
+from domain.tunnel.router import router as tunnel_router, ws_router as tunnel_ws_router, es_proxy_router as tunnel_es_proxy_router
 from domain.memory.router import router as memory_router
 from domain.agentcore.identity_router import router as identity_router
 from domain.auth.service import seed_data
@@ -54,7 +52,7 @@ def _run_alembic_sync():
     result = subprocess.run(
         ["alembic", "upgrade", "head"],
         capture_output=True, text=True, timeout=30,
-        env={**__import__("os").environ, "SYNC_DATABASE_URL": settings.SYNC_DATABASE_URL},
+        env={**__import__("os").environ, "SYNC_DATABASE_URL": settings.get_sync_database_url()},
     )
     if result.stdout:
         logger.info(result.stdout.strip())
@@ -141,12 +139,12 @@ app.include_router(public_registry_router)
 app.include_router(public_mcp_router)
 app.include_router(gateway_proxy_router)
 app.include_router(gateway_stats_router)
-app.include_router(team_router)
 app.include_router(review_router)
 app.include_router(cli_router)
 app.include_router(rest_to_mcp_router)
 app.include_router(tunnel_router)
 app.include_router(tunnel_ws_router)
+app.include_router(tunnel_es_proxy_router)
 app.include_router(memory_router)
 app.include_router(identity_router)
 

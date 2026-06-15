@@ -41,21 +41,22 @@ export default function ApiKeysPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t.api_keys.title}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{t.api_keys.subtitle}</p>
+          <h1 className="text-lg font-semibold text-foreground">{t.api_keys.title}</h1>
+          <p className="text-sm text-muted-foreground">{t.api_keys.subtitle}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setNewKey(null); }}>
-          <DialogTrigger render={<Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 px-4 rounded-xl shadow-sm font-semibold text-sm" onClick={() => { setForm({ name: "", scopes: "", expires_in_days: "" }); setNewKey(null); }}><Plus className="h-4 w-4 mr-2" />{t.api_keys.create}</Button>} />
+          <DialogTrigger render={<Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 rounded-md shadow-sm text-sm font-medium" onClick={() => { setForm({ name: "", scopes: "", expires_in_days: "" }); setNewKey(null); }}><Plus className="h-4 w-4 mr-2" />{t.api_keys.create}</Button>} />
           <DialogContent>
             <DialogHeader><DialogTitle>{newKey ? t.api_keys.key_created : t.api_keys.create}</DialogTitle></DialogHeader>
             {newKey ? (
               <div className="space-y-4 py-2">
                 <p className="text-sm text-muted-foreground">{t.api_keys.copy_warning}</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-muted p-3 rounded-lg text-xs font-mono break-all">{newKey}</code>
-                  <Button variant="outline" size="icon" className="shrink-0 h-9 w-9" onClick={() => copyKey(newKey)}><Copy className="h-4 w-4" /></Button>
+                  <code className="flex-1 bg-muted p-3 rounded-md text-xs font-mono break-all">{newKey}</code>
+                  <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 rounded-md" onClick={() => copyKey(newKey)}><Copy className="h-4 w-4" /></Button>
                 </div>
                 <Button className="w-full" size="sm" onClick={() => setDialogOpen(false)}>{t.common.done}</Button>
               </div>
@@ -73,21 +74,24 @@ export default function ApiKeysPage() {
         </Dialog>
       </div>
 
+      {/* Keys List */}
       <div className="space-y-3">
         {keys.map((k) => (
-          <Card key={k.id} className="rounded-xl border border-border shadow-sm">
+          <Card key={k.id} className="rounded-lg border-0 shadow-sm">
             <CardContent className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-[#ffae1f]/10 p-2"><Key className="h-4 w-4 text-[#ffae1f]" /></div>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-sm">
+                  <Key className="h-5 w-5 text-white" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">{k.name}</p>
+                  <p className="text-sm font-medium text-foreground">{k.name}</p>
                   <p className="text-xs text-muted-foreground font-mono mt-0.5">{k.key_prefix}••••••••</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {k.scopes.length > 0 && <div className="flex gap-1">{k.scopes.map((s) => <Badge key={s} variant="outline" className="text-[10px] h-5">{s}</Badge>)}</div>}
+                {k.scopes.length > 0 && <div className="flex gap-1">{k.scopes.map((s) => <Badge key={s} variant="secondary" className="text-[10px] h-5 rounded">{s}</Badge>)}</div>}
                 <span className="text-[11px] text-muted-foreground">{k.expires_at ? `${new Date(k.expires_at).toLocaleDateString()}` : t.api_keys.no_expiry}</span>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(k.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => handleDelete(k.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
               </div>
             </CardContent>
           </Card>

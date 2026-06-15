@@ -95,35 +95,123 @@ async def _route_via_agentcore(
     method_name: str, tool_name: Optional[str],
     user_id: int, username: str, api_key_id: Optional[int],
 ) -> Response:
-    """Route MCP request through AWS AgentCore Gateway."""
-    from domain.agentcore.gateway_adapter import get_gateway_adapter
+    """Route MCP request through AWS AgentCore Runtime (invoke_agent_runtime)."""
     from domain.agentcore.observability_adapter import trace_tool_call
+    from domain.runtime.models import Instance
+    import boto3
+    from core import settings as app_settings
 
-    adapter = get_gateway_adapter()
     start = time.time()
     response_status = "success"
     error_message = None
 
-    try:
-        async with trace_tool_call(tool_name or method_name, server_ns):
-            resp_data = await adapter.route_mcp_request(server_ns, rpc_body)
+    runtime_arn = None
+    result = await db_module_execute(server.id)
+    if result:
+        runtime_arn = result
 
-        if "error" in resp_data:
+    if not runtime_arn:
+        resp_data = {"jsonrpc": "2.0", "id": rpc_body.get("id"), "error": {"code": -32000, "message": f"No AgentCore runtime found for server '{server_ns}'"}}
+        resp_body = json.dumps(resp_data).encode()
+        latency_ms = round((time.time() - start) * 1000, 2)
+        await _log_call(user_id, username, api_key_id, server, server_ns, method_name, tool_name, rpc_body.get("params"), "error", resp_data["error"]["message"], latency_ms, len(body_bytes), len(resp_body), request)
+        return Response(content=resp_body, media_type="application/json", status_code=503)
+
+    # Notifications (no "id") get 202 Accepted per MCP spec
+    if "id" not in rpc_body:
+        try:
+            agentcore_client = boto3.client("bedrock-agentcore", region_name=app_settings.AWS_REGION)
+            mcp_session_id = request.headers.get("mcp-session-id", "")
+            invoke_params = {
+                "agentRuntimeArn": runtime_arn,
+                "contentType": "application/json",
+                "accept": "application/json, text/event-stream",
+                "mcpProtocolVersion": "2024-11-05",
+                "payload": body_bytes,
+            }
+            if mcp_session_id:
+                invoke_params["mcpSessionId"] = mcp_session_id
+            await asyncio.to_thread(lambda: agentcore_client.invoke_agent_runtime(**invoke_params))
+        except Exception:
+            pass
+        return Response(status_code=202)
+
+    try:
+        agentcore_client = boto3.client("bedrock-agentcore", region_name=app_settings.AWS_REGION)
+        mcp_session_id = request.headers.get("mcp-session-id", "")
+
+        invoke_params = {
+            "agentRuntimeArn": runtime_arn,
+            "contentType": "application/json",
+            "accept": "application/json, text/event-stream",
+            "mcpProtocolVersion": "2024-11-05",
+            "payload": body_bytes,
+        }
+        if mcp_session_id:
+            invoke_params["mcpSessionId"] = mcp_session_id
+
+        async with trace_tool_call(tool_name or method_name, server_ns):
+            invoke_resp = await asyncio.to_thread(
+                lambda: agentcore_client.invoke_agent_runtime(**invoke_params)
+            )
+
+        raw_body = invoke_resp["response"].read().decode("utf-8", errors="replace")
+        resp_headers = invoke_resp["ResponseMetadata"]["HTTPHeaders"]
+        new_session_id = resp_headers.get("mcp-session-id", mcp_session_id)
+
+        parsed = _parse_sse(raw_body)
+        if parsed and "error" in parsed:
             response_status = "error"
-            err = resp_data["error"]
+            err = parsed["error"]
             error_message = err.get("message", str(err)) if isinstance(err, dict) else str(err)
 
-        resp_body = json.dumps(resp_data).encode()
+        # Return as proper SSE format for Streamable HTTP
+        if parsed:
+            sse_body = f"event: message\ndata: {json.dumps(parsed)}\n\n"
+            resp_body = sse_body.encode()
+        else:
+            resp_body = raw_body.encode()
+
     except Exception as e:
         response_status = "error"
         error_message = str(e)[:500]
-        resp_data = {"jsonrpc": "2.0", "id": rpc_body.get("id"), "error": {"code": -32000, "message": f"AgentCore Gateway error: {error_message}"}}
-        resp_body = json.dumps(resp_data).encode()
+        resp_data = {"jsonrpc": "2.0", "id": rpc_body.get("id"), "error": {"code": -32000, "message": f"AgentCore Runtime error: {error_message}"}}
+        sse_body = f"event: message\ndata: {json.dumps(resp_data)}\n\n"
+        resp_body = sse_body.encode()
+        new_session_id = mcp_session_id if 'mcp_session_id' in dir() else ""
+        resp_headers = {}
 
     latency_ms = round((time.time() - start) * 1000, 2)
     await _log_call(user_id, username, api_key_id, server, server_ns, method_name, tool_name, rpc_body.get("params"), response_status, error_message, latency_ms, len(body_bytes), len(resp_body), request)
 
-    return Response(content=resp_body, media_type="application/json")
+    response_headers = {"content-type": "text/event-stream"}
+    if new_session_id:
+        response_headers["mcp-session-id"] = new_session_id
+
+    return Response(
+        content=resp_body,
+        media_type="text/event-stream",
+        headers=response_headers,
+    )
+
+
+async def db_module_execute(server_id: int) -> Optional[str]:
+    """Look up the AgentCore Runtime ARN for a managed server."""
+    from domain.runtime.models import Instance
+    async with async_session() as db:
+        result = await db.execute(
+            select(Instance).where(
+                Instance.server_id == server_id,
+                Instance.status == "running",
+                Instance.runtime_type == "agentcore",
+            )
+        )
+        inst = result.scalar_one_or_none()
+        if inst and inst.container_id:
+            from core import settings as _settings
+            region = _settings.AWS_REGION
+            return f"arn:aws:bedrock-agentcore:{region}:715371302281:runtime/{inst.container_id}"
+    return None
 
 
 async def _route_via_tunnel(

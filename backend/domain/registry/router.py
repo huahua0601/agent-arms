@@ -70,8 +70,15 @@ async def discover(server_id: int, current=Depends(PermissionChecker(["mcp_serve
     from domain.registry.mcp_client import discover_capabilities
     server = await svc.get_server(db, server_id)
     if not server: raise HTTPException(404)
-    if not server.endpoint_url: raise HTTPException(400, "No endpoint URL configured")
-    caps = await discover_capabilities(server.endpoint_url, server.auth_type, server.auth_config)
+
+    if server.source_type == "managed":
+        from domain.registry.mcp_client import discover_capabilities_via_agentcore
+        caps = await discover_capabilities_via_agentcore(server.id)
+    elif not server.endpoint_url:
+        raise HTTPException(400, "No endpoint URL configured")
+    else:
+        caps = await discover_capabilities(server.endpoint_url, server.auth_type, server.auth_config)
+
     if caps.get("error"):
         return {"success": False, "error": caps["error"], "tools": 0, "resources": 0, "prompts": 0}
     result = await svc.discover_server(db, server_id, caps["tools"], caps["resources"], caps["prompts"])
@@ -86,9 +93,13 @@ async def check_health(server_id: int, current=Depends(get_current_user), db: As
     import datetime, time as _time
     server = await svc.get_server(db, server_id)
     if not server: raise HTTPException(404)
-    if not server.endpoint_url: raise HTTPException(400, "No endpoint URL configured")
 
-    if server.source_type == "openapi":
+    if server.source_type == "managed":
+        from domain.registry.mcp_client import health_check_via_agentcore
+        result = await health_check_via_agentcore(server.id)
+    elif not server.endpoint_url:
+        raise HTTPException(400, "No endpoint URL configured")
+    elif server.source_type == "openapi":
         import httpx
         url = _resolve_url(server.endpoint_url.rstrip("/"))
         start = _time.time()

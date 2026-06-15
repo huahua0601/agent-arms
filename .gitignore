@@ -17,6 +17,10 @@ out/
 frontend/out/
 frontend/.next/
 
+# CDK
+cdk.out/
+cdk/cdk.out/
+
 # Env / secrets
 .env
 .env.local

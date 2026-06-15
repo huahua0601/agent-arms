@@ -42,10 +42,10 @@ export default function NewSkillPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft className="h-4 w-4" /></Button>
-        <div><h2 className="text-2xl font-bold text-foreground">{t.skills.create}</h2></div>
+        <div><h2 className="text-lg font-semibold text-foreground">{t.skills.create}</h2></div>
       </div>
 
-      <Card className="rounded-xl border border-border shadow-sm">
+      <Card className="rounded-lg border-0 shadow-sm">
         <CardHeader><CardTitle className="text-base">{t.servers.basic_info}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -68,7 +68,7 @@ export default function NewSkillPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-xl border border-border shadow-sm">
+      <Card className="rounded-lg border-0 shadow-sm">
         <CardHeader><CardTitle className="text-base">{t.skills.content} *</CardTitle></CardHeader>
         <CardContent>
           <Textarea value={form.content} onChange={(e) => set("content", e.target.value)} placeholder="# My Skill\n\nDescribe what this skill does and how the agent should use it..." rows={16} className="font-mono text-sm" />

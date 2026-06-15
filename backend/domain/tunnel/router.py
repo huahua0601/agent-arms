@@ -1,5 +1,6 @@
 """Tunnel API — WebSocket for agents + REST for tunnel token management."""
 import asyncio
+import base64
 import datetime
 import hashlib
 import json
@@ -7,7 +8,7 @@ import logging
 import secrets
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -118,6 +119,90 @@ async def delete_token(
 @router.get("/connections")
 async def list_connections(current=Depends(get_current_user)):
     return tunnel_registry.list_connections()
+
+
+# ------- ES / Generic HTTP Reverse Proxy via Tunnel -------
+
+es_proxy_router = APIRouter(tags=["tunnel"])
+
+# Hop-by-hop headers that must not be forwarded.
+_HOP_BY_HOP = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade", "host", "content-length",
+}
+
+
+@es_proxy_router.api_route(
+    "/es-proxy/{namespace}/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
+)
+async def es_proxy(
+    namespace: str,
+    path: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generic HTTP reverse proxy to a private backend (e.g. ElasticSearch) via tunnel.
+
+    A MCP server running in AgentCore (PUBLIC network) hits this endpoint; the request
+    is forwarded over the reverse WebSocket tunnel to the private-network tunnel-agent
+    (running in `http-proxy` mode), which calls the real backend and returns the response.
+
+    Auth: Authorization: Bearer <api_key> using registry API keys.
+    """
+    from domain.gateway.auth import authenticate_gateway_request
+
+    await authenticate_gateway_request(request, db)
+
+    server = (await db.execute(
+        select(McpServer).where(McpServer.namespace == namespace)
+    )).scalar_one_or_none()
+    if not server:
+        raise HTTPException(status_code=404, detail=f"MCP server '{namespace}' not found")
+
+    conn = tunnel_registry.get(server.id)
+    if not conn:
+        raise HTTPException(status_code=503, detail=f"Tunnel agent for '{namespace}' is offline")
+
+    body_bytes = await request.body()
+    fwd_headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in _HOP_BY_HOP and k.lower() != "authorization"
+    }
+
+    payload = {
+        "method": request.method,
+        "path": "/" + path,
+        "query": str(request.url.query or ""),
+        "headers": fwd_headers,
+        # body is base64-encoded to safely carry binary/utf8 over JSON
+        "body_b64": base64.b64encode(body_bytes).decode("ascii") if body_bytes else "",
+    }
+
+    try:
+        resp = await conn.send(payload, envelope_type="http_request", timeout=60.0)
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Tunnel backend timed out")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Tunnel error: {e}")
+
+    if resp.get("error"):
+        raise HTTPException(status_code=502, detail=f"Tunnel agent error: {resp['error']}")
+
+    status_code = int(resp.get("status", 502))
+    resp_body = base64.b64decode(resp.get("body_b64", "")) if resp.get("body_b64") else b""
+    resp_headers = {
+        k: v for k, v in (resp.get("headers", {}) or {}).items()
+        if k.lower() not in _HOP_BY_HOP
+    }
+    media_type = resp_headers.pop("content-type", None) or resp_headers.pop("Content-Type", None)
+
+    return Response(
+        content=resp_body,
+        status_code=status_code,
+        headers=resp_headers,
+        media_type=media_type,
+    )
 
 
 # ------- WebSocket Endpoint -------

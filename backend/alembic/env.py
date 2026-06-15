@@ -14,7 +14,6 @@ from domain.runtime.models import *   # noqa: F401, F403
 from domain.audit.models import *     # noqa: F401, F403
 from domain.skill.models import *     # noqa: F401, F403
 from domain.gateway.models import *   # noqa: F401, F403
-from domain.team.models import *      # noqa: F401, F403
 from domain.review.models import *    # noqa: F401, F403
 from domain.tunnel.models import *    # noqa: F401, F403
 
@@ -22,7 +21,18 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-db_url = os.getenv("SYNC_DATABASE_URL", config.get_main_option("sqlalchemy.url", ""))
+db_url = os.getenv("SYNC_DATABASE_URL", "")
+if not db_url:
+    # Build from components
+    db_user = os.getenv("DB_USERNAME", "")
+    db_pass = os.getenv("DB_PASSWORD", "")
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME", "mcp_registry")
+    if db_user and db_pass:
+        db_url = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+if not db_url:
+    db_url = config.get_main_option("sqlalchemy.url", "")
 if db_url:
     config.set_main_option("sqlalchemy.url", db_url)
 

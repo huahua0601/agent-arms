@@ -11,11 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Play, Square, RotateCw, Trash2, FileText, Heart } from "lucide-react";
+import { Plus, Play, Square, RotateCw, Trash2, FileText, Heart, Box } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/confirm-dialog";
 
-const STATUS_DOT: Record<string, string> = { running: "bg-[#13deb9]", stopped: "bg-gray-400", pending: "bg-[#ffae1f]", error: "bg-destructive" };
+const STATUS_DOT: Record<string, string> = { running: "bg-emerald-500", stopped: "bg-gray-400", pending: "bg-amber-500", error: "bg-destructive" };
 
 export default function InstancesPage() {
   const { t } = useI18n();
@@ -28,7 +28,7 @@ export default function InstancesPage() {
   const [form, setForm] = useState({ server_id: "", server_name: "", image: "", command: "", cpu_limit: "0.5", memory_limit: "256m" });
 
   const fetchInstances = useCallback(async () => {
-    try { const data = await api.get<PaginatedResponse<Instance>>(`/api/instances?page=${page}&page_size=20`); setInstances(data.items); setTotal(data.total); } catch { /* ignore */ }
+    try { const data = await api.get<PaginatedResponse<Instance>>(`/api/instances?page=${page}&page_size=20`); setInstances(data.items); setTotal(data.total); } catch {}
   }, [page]);
 
   useEffect(() => { fetchInstances(); }, [fetchInstances]);
@@ -59,13 +59,14 @@ export default function InstancesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t.instances.title}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{total} {t.instances.subtitle}</p>
+          <h1 className="text-lg font-semibold text-foreground">{t.instances.title}</h1>
+          <p className="text-sm text-muted-foreground">{total} {t.instances.subtitle}</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger render={<Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 px-4 rounded-xl shadow-sm font-semibold text-sm"><Plus className="h-4 w-4 mr-2" />{t.instances.create}</Button>} />
+          <DialogTrigger render={<Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-4 rounded-md shadow-sm text-sm font-medium"><Plus className="h-4 w-4 mr-2" />{t.instances.create}</Button>} />
           <DialogContent>
             <DialogHeader><DialogTitle>{t.instances.create}</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
@@ -83,26 +84,27 @@ export default function InstancesPage() {
         </Dialog>
       </div>
 
-      <Card className="rounded-xl border border-border shadow-sm">
+      {/* Table Card */}
+      <Card className="rounded-lg border-0 shadow-sm overflow-hidden">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead className="text-xs">ID</TableHead>
-                <TableHead className="text-xs">{t.instances.server_name}</TableHead>
-                <TableHead className="text-xs">{t.instances.image}</TableHead>
-                <TableHead className="text-xs">{t.instances.port}</TableHead>
-                <TableHead className="text-xs">{t.common.status}</TableHead>
-                <TableHead className="text-xs">{t.instances.resources}</TableHead>
-                <TableHead className="text-xs w-44">{t.common.actions}</TableHead>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="text-xs font-semibold text-muted-foreground">ID</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.instances.server_name}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.instances.image}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.instances.port}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.common.status}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.instances.resources}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground w-44">{t.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {instances.map((inst) => (
-                <TableRow key={inst.id} className="hover:bg-muted/30">
-                  <TableCell className="font-mono text-xs">#{inst.id}</TableCell>
+                <TableRow key={inst.id} className="hover:bg-muted/20">
+                  <TableCell className="font-mono text-xs text-muted-foreground">#{inst.id}</TableCell>
                   <TableCell className="text-sm font-medium">{inst.server_name || `Server #${inst.server_id}`}</TableCell>
-                  <TableCell className="font-mono text-xs max-w-[120px] truncate">{inst.image || "—"}</TableCell>
+                  <TableCell className="font-mono text-xs max-w-[120px] truncate text-muted-foreground">{inst.image || "—"}</TableCell>
                   <TableCell className="text-sm">{inst.port || "—"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
@@ -113,22 +115,37 @@ export default function InstancesPage() {
                   <TableCell className="text-xs text-muted-foreground">{inst.cpu_limit} CPU / {inst.memory_limit}</TableCell>
                   <TableCell>
                     <div className="flex gap-0.5">
-                      {(inst.status === "stopped" || inst.status === "error") && <Button variant="ghost" size="icon" className="h-7 w-7" title="Start" onClick={() => action(inst.id, "start")}><Play className="h-3.5 w-3.5 text-[#13deb9]" /></Button>}
-                      {inst.status === "running" && <Button variant="ghost" size="icon" className="h-7 w-7" title="Stop" onClick={() => action(inst.id, "stop")}><Square className="h-3.5 w-3.5 text-[#ffae1f]" /></Button>}
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Restart" onClick={() => action(inst.id, "restart")}><RotateCw className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Logs" onClick={() => viewLogs(inst.id)}><FileText className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Health" onClick={() => checkHealth(inst.id)}><Heart className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Delete" onClick={() => handleDelete(inst.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                      {(inst.status === "stopped" || inst.status === "error") && <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" title="Start" onClick={() => action(inst.id, "start")}><Play className="h-3.5 w-3.5 text-emerald-500" /></Button>}
+                      {inst.status === "running" && <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" title="Stop" onClick={() => action(inst.id, "stop")}><Square className="h-3.5 w-3.5 text-amber-500" /></Button>}
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" title="Restart" onClick={() => action(inst.id, "restart")}><RotateCw className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" title="Logs" onClick={() => viewLogs(inst.id)}><FileText className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" title="Health" onClick={() => checkHealth(inst.id)}><Heart className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" title="Delete" onClick={() => handleDelete(inst.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          {instances.length === 0 && <p className="text-center py-12 text-sm text-muted-foreground">{t.instances.no_instances}</p>}
+          {instances.length === 0 && (
+            <div className="text-center py-16 text-muted-foreground">
+              <Box className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-sm">{t.instances.no_instances}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
+      {/* Pagination */}
+      {total > 20 && (
+        <div className="flex justify-center gap-2">
+          <Button variant="outline" size="sm" className="rounded-md" disabled={page <= 1} onClick={() => setPage(page - 1)}>{t.common.previous}</Button>
+          <span className="text-sm text-muted-foreground self-center px-4">{t.common.page} {page} {t.common.of} {Math.ceil(total / 20)}</span>
+          <Button variant="outline" size="sm" className="rounded-md" disabled={page * 20 >= total} onClick={() => setPage(page + 1)}>{t.common.next}</Button>
+        </div>
+      )}
+
+      {/* Logs Dialog */}
       <Dialog open={logsDialog.open} onOpenChange={(o) => setLogsDialog((s) => ({ ...s, open: o }))}>
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader><DialogTitle>{t.instances.logs_title} — #{logsDialog.id}</DialogTitle></DialogHeader>

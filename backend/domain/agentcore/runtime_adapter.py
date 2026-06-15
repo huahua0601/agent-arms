@@ -18,7 +18,7 @@ class RuntimeAdapter:
 
     def __init__(self):
         self._client = boto3.client(
-            "bedrock-agentcore",
+            "bedrock-agentcore-control",
             region_name=settings.AWS_REGION,
         )
 
@@ -31,19 +31,27 @@ class RuntimeAdapter:
         memory: str = "512",
         network_mode: str = "PUBLIC",
     ) -> dict:
-        """Create an AgentCore Runtime from a container image.
-
-        This pushes the agent/tool to AWS and creates a managed runtime environment.
-        """
+        """Create an AgentCore Runtime from a container image."""
         try:
-            response = self._client.create_agent_runtime(
-                agentRuntimeName=name,
-                containerConfig={
-                    "imageUri": image_uri,
-                    "environmentVariables": environment or {},
+            params = {
+                "agentRuntimeName": name,
+                "agentRuntimeArtifact": {
+                    "containerConfiguration": {
+                        "containerUri": image_uri,
+                    }
                 },
-                networkMode=network_mode,
-            )
+                "roleArn": settings.AGENTCORE_RUNTIME_ROLE_ARN,
+                "networkConfiguration": {
+                    "networkMode": network_mode,
+                },
+                "protocolConfiguration": {
+                    "serverProtocol": "MCP",
+                },
+            }
+            if environment:
+                params["environmentVariables"] = environment
+
+            response = self._client.create_agent_runtime(**params)
             runtime_id = response.get("agentRuntimeId")
             logger.info(f"Created AgentCore Runtime '{name}': {runtime_id}")
             return {

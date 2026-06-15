@@ -78,22 +78,22 @@ export default function MarketplacePage() {
   }, [tab, search, loadMcp, loadSkills]);
 
   const categoryColors: Record<string, string> = {
-    coding: "bg-[#ecf2ff] text-[#5d87ff]",
-    devops: "bg-[#e6fffa] text-[#13deb9]",
-    data: "bg-[#f3f0ff] text-[#7c3aed]",
-    security: "bg-[#fdede8] text-[#fa896b]",
-    writing: "bg-[#fef5e5] text-[#ffae1f]",
-    research: "bg-[#e8f7ff] text-[#49beff]",
-    automation: "bg-[#ecf2ff] text-[#5d87ff]",
-    integration: "bg-[#e6fffa] text-[#13deb9]",
+    coding: "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400",
+    devops: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+    data: "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400",
+    security: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+    writing: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+    research: "bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400",
+    automation: "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400",
+    integration: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
     general: "bg-muted text-muted-foreground",
     other: "bg-muted text-muted-foreground",
   };
 
   const healthDot = (status: string) => {
-    const color = status === "healthy" ? "bg-[#13deb9]" :
+    const color = status === "healthy" ? "bg-emerald-500" :
                   status === "offline" ? "bg-gray-400" :
-                  status === "timeout" ? "bg-[#ffae1f]" :
+                  status === "timeout" ? "bg-amber-500" :
                   status === "unknown" ? "bg-gray-300" : "bg-destructive";
     return <span className={`h-2 w-2 rounded-full ${color} ${status === "healthy" ? "animate-pulse" : ""}`} />;
   };
@@ -101,10 +101,10 @@ export default function MarketplacePage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <Card className="rounded-2xl border border-border shadow-sm bg-gradient-to-br from-primary/10 via-card to-card overflow-hidden relative">
+      <Card className="rounded-lg border-0 shadow-sm bg-gradient-to-br from-primary/5 via-card to-card overflow-hidden relative">
         <CardContent className="p-8 relative z-10">
           <div className="flex items-start gap-5">
-            <div className="h-14 w-14 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
+            <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Store className="h-7 w-7 text-primary" />
             </div>
             <div>
@@ -136,17 +136,17 @@ export default function MarketplacePage() {
 
       {/* Tabs + Search */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex gap-1 rounded-xl border border-border p-0.5 bg-card">
+        <div className="flex gap-1 rounded-md border border-border p-0.5 bg-card">
           <button
             onClick={() => setTab("mcp")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${tab === "mcp" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors ${tab === "mcp" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Server className="h-4 w-4" />
             MCP Servers ({mcpTotal})
           </button>
           <button
             onClick={() => setTab("skills")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${tab === "skills" ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors ${tab === "skills" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             <Sparkles className="h-4 w-4" />
             Agent Skills ({skillTotal})
@@ -158,7 +158,7 @@ export default function MarketplacePage() {
             placeholder={locale === "zh" ? `搜索 ${tab === "mcp" ? "MCP 服务" : "技能"}...` : `Search ${tab === "mcp" ? "MCP servers" : "skills"}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 rounded-xl"
+            className="pl-9 h-10 rounded-md"
           />
         </div>
       </div>
@@ -171,11 +171,11 @@ export default function MarketplacePage() {
       ) : tab === "mcp" ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {mcpItems.map((item) => (
-            <Card key={item.namespace} className="rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
+            <Card key={item.namespace} className="rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="h-11 w-11 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Server className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0">
@@ -222,11 +222,11 @@ export default function MarketplacePage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {skillItems.map((item) => (
-            <Card key={item.namespace} className="rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
+            <Card key={item.namespace} className="rounded-lg border border-border shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="h-11 w-11 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Sparkles className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0">

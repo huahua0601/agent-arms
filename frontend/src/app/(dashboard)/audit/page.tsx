@@ -7,10 +7,10 @@ import type { AuditLog, PaginatedResponse } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Filter, Activity, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Download, Filter, Activity, CheckCircle, XCircle, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AuditPage() {
@@ -29,11 +29,11 @@ export default function AuditPage() {
       if (filters.status) url += `&status=${filters.status}`;
       const data = await api.get<PaginatedResponse<AuditLog>>(url);
       setLogs(data.items); setTotal(data.total);
-    } catch { /* ignore */ }
+    } catch {}
   }, [page, filters]);
 
   const fetchStats = useCallback(async () => {
-    try { setStats(await api.get("/api/audit/stats")); } catch { /* ignore */ }
+    try { setStats(await api.get("/api/audit/stats")); } catch {}
   }, []);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
@@ -51,59 +51,76 @@ export default function AuditPage() {
   };
 
   const statCards = stats ? [
-    { label: t.audit.stats_total, value: stats.total_events, icon: Activity, color: "text-primary", bg: "bg-primary/10" },
-    { label: t.audit.stats_today, value: stats.today_events, icon: Clock, color: "text-[#ffae1f]", bg: "bg-[#ffae1f]/10" },
-    { label: t.audit.stats_success, value: stats.success_count, icon: CheckCircle, color: "text-[#13deb9]", bg: "bg-[#13deb9]/10" },
-    { label: t.audit.stats_failures, value: stats.failure_count, icon: XCircle, color: "text-red-500", bg: "bg-destructive/10" },
+    { label: t.audit.stats_total, value: stats.total_events, icon: Activity, gradient: "from-indigo-500 to-indigo-600" },
+    { label: t.audit.stats_today, value: stats.today_events, icon: Clock, gradient: "from-amber-500 to-amber-600" },
+    { label: t.audit.stats_success, value: stats.success_count, icon: CheckCircle, gradient: "from-emerald-500 to-emerald-600" },
+    { label: t.audit.stats_failures, value: stats.failure_count, icon: XCircle, gradient: "from-red-500 to-red-600" },
   ] : [];
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t.audit.title}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{total} {t.audit.total_events}</p>
+          <h1 className="text-lg font-semibold text-foreground">{t.audit.title}</h1>
+          <p className="text-sm text-muted-foreground">{total} {t.audit.total_events}</p>
         </div>
-        <Button variant="outline" size="sm" className="h-9" onClick={handleExport}><Download className="h-4 w-4 mr-1.5" />{t.common.export_csv}</Button>
+        <Button variant="outline" size="sm" className="h-9 rounded-md" onClick={handleExport}><Download className="h-4 w-4 mr-1.5" />{t.common.export_csv}</Button>
       </div>
 
+      {/* Stats */}
       {stats && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.map((s) => (
-            <Card key={s.label} className="rounded-xl border border-border shadow-sm">
+            <Card key={s.label} className="rounded-lg border-0 shadow-sm">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className={`rounded-lg p-2.5 ${s.bg}`}><s.icon className={`h-4 w-4 ${s.color}`} /></div>
-                <div><p className="text-xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+                <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${s.gradient} flex items-center justify-center shrink-0 shadow-sm`}>
+                  <s.icon className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-foreground">{s.value}</p>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      <Card className="rounded-xl border border-border shadow-sm">
+      {/* Table */}
+      <Card className="rounded-lg border-0 shadow-sm overflow-hidden">
         <CardContent className="p-0">
-          <div className="p-4 border-b flex items-center gap-3 flex-wrap">
+          <div className="p-4 border-b border-border flex items-center gap-3 flex-wrap">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Input placeholder={`${t.audit.username}...`} value={filters.username} onChange={(e) => { setFilters({ ...filters, username: e.target.value }); setPage(1); }} className="h-9 w-36 text-sm" />
-            <Input placeholder={`${t.audit.action}...`} value={filters.action} onChange={(e) => { setFilters({ ...filters, action: e.target.value }); setPage(1); }} className="h-9 w-44 text-sm" />
+            <Input placeholder={`${t.audit.username}...`} value={filters.username} onChange={(e) => { setFilters({ ...filters, username: e.target.value }); setPage(1); }} className="h-9 w-36 text-sm bg-muted/50 border-0" />
+            <Input placeholder={`${t.audit.action}...`} value={filters.action} onChange={(e) => { setFilters({ ...filters, action: e.target.value }); setPage(1); }} className="h-9 w-44 text-sm bg-muted/50 border-0" />
             <Select value={filters.status || "all"} onValueChange={(v) => { setFilters({ ...filters, status: !v || v === "all" ? "" : v }); setPage(1); }}>
               <SelectTrigger className="w-28 h-9 text-sm"><SelectValue placeholder={t.common.status} /></SelectTrigger>
               <SelectContent><SelectItem value="all">{t.common.all}</SelectItem><SelectItem value="success">{t.common.success}</SelectItem><SelectItem value="failure">{t.common.failure}</SelectItem></SelectContent>
             </Select>
           </div>
           <Table>
-            <TableHeader><TableRow className="bg-muted/30"><TableHead className="text-xs">{t.audit.time}</TableHead><TableHead className="text-xs">{t.audit.username}</TableHead><TableHead className="text-xs">{t.audit.action}</TableHead><TableHead className="text-xs">{t.audit.resource}</TableHead><TableHead className="text-xs">{t.audit.ip}</TableHead><TableHead className="text-xs">{t.common.status}</TableHead></TableRow></TableHeader>
+            <TableHeader>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.audit.time}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.audit.username}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.audit.action}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.audit.resource}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.audit.ip}</TableHead>
+                <TableHead className="text-xs font-semibold text-muted-foreground">{t.common.status}</TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
               {logs.map((log) => (
-                <TableRow key={log.id} className="hover:bg-muted/30">
+                <TableRow key={log.id} className="hover:bg-muted/20">
                   <TableCell className="text-xs whitespace-nowrap text-muted-foreground">{new Date(log.created_at).toLocaleString()}</TableCell>
                   <TableCell className="text-sm">{log.username || "—"}</TableCell>
                   <TableCell className="font-mono text-xs max-w-[180px] truncate">{log.action}</TableCell>
-                  <TableCell><Badge variant="outline" className="text-[10px] h-5">{log.resource_type}</Badge></TableCell>
+                  <TableCell><Badge variant="secondary" className="text-[10px] h-5 rounded">{log.resource_type}</Badge></TableCell>
                   <TableCell className="text-xs text-muted-foreground">{log.ip_address || "—"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <span className={`h-2 w-2 rounded-full ${log.status === "success" ? "bg-[#13deb9]" : "bg-destructive"}`} />
+                      <span className={`h-2 w-2 rounded-full ${log.status === "success" ? "bg-emerald-500" : "bg-destructive"}`} />
                       <span className="text-xs">{log.status}</span>
                     </div>
                   </TableCell>
@@ -111,12 +128,17 @@ export default function AuditPage() {
               ))}
             </TableBody>
           </Table>
-          {logs.length === 0 && <p className="text-center py-12 text-sm text-muted-foreground">{t.audit.no_logs}</p>}
+          {logs.length === 0 && (
+            <div className="text-center py-16 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="text-sm">{t.audit.no_logs}</p>
+            </div>
+          )}
           {total > 50 && (
-            <div className="flex justify-center gap-2 p-4 border-t">
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+            <div className="flex justify-center gap-2 p-4 border-t border-border">
+              <Button variant="outline" size="sm" className="rounded-md" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
               <span className="text-sm text-muted-foreground self-center px-3">Page {page} of {Math.ceil(total / 50)}</span>
-              <Button variant="outline" size="sm" disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button>
+              <Button variant="outline" size="sm" className="rounded-md" disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button>
             </div>
           )}
         </CardContent>

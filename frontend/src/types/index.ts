@@ -218,41 +218,11 @@ export interface GatewayErrorItem {
   created_at: string | null;
 }
 
-export interface Team {
-  id: number;
-  slug: string;
-  display_name: string;
-  description: string | null;
-  avatar_url: string | null;
-  is_personal: boolean;
-  require_review: boolean;
-  created_by: number;
-  member_count: number;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-export interface TeamMember {
-  id: number;
-  user_id: number;
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  role: string;
-  joined_at: string | null;
-}
-
-export interface TeamDetail extends Team {
-  members: TeamMember[];
-}
-
 export interface ReviewRequest {
   id: number;
   resource_type: string;
   resource_id: number;
   resource_name: string | null;
-  team_id: number;
-  team_slug: string | null;
   submitter_id: number;
   submitter_name: string | null;
   status: string;

@@ -20,7 +20,6 @@ class Skill(Base):
     version = Column(String(32), default="1.0.0")
     author_id = Column(Integer, nullable=False, index=True)
     author_name = Column(String(128))
-    team_id = Column(Integer, ForeignKey("teams.id"), index=True)
     icon_url = Column(String(512))
     package_path = Column(String(512))
     status = Column(String(32), default="active", index=True)

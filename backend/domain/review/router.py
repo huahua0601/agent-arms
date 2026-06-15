@@ -6,7 +6,6 @@ from core.database import get_db
 from middleware.auth import get_current_user
 from middleware import PaginatedResponse
 from domain.review import schemas as S, service as svc
-from domain.team.service import get_member_role, list_user_teams
 
 router = APIRouter(prefix="/api/reviews", tags=["reviews"])
 
@@ -22,11 +21,11 @@ async def submit_review(body: S.ReviewSubmit, current=Depends(get_current_user),
 
 @router.get("", response_model=PaginatedResponse[S.ReviewResponse])
 async def list_reviews(
-    status: Optional[str] = None, team_id: Optional[int] = None,
+    status: Optional[str] = None,
     page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
     current=Depends(get_current_user), db: AsyncSession = Depends(get_db),
 ):
-    items, total = await svc.list_reviews(db, status, team_id, page, page_size)
+    items, total = await svc.list_reviews(db, status, page, page_size)
     enriched = [await svc.enrich_review(db, r) for r in items]
     return PaginatedResponse(
         items=enriched, total=total, page=page, page_size=page_size,
@@ -36,9 +35,7 @@ async def list_reviews(
 
 @router.get("/pending-count")
 async def pending_count(current=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    teams = await list_user_teams(db, int(current["sub"]))
-    team_ids = [t.id for t in teams]
-    count = await svc.get_pending_count(db, team_ids) if team_ids else 0
+    count = await svc.get_pending_count(db)
     return {"count": count}
 
 

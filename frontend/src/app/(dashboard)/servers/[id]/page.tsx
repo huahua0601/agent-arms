@@ -131,7 +131,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : t.common.failure); }
   };
 
-  if (!server) return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-full border-[3px] border-[#465fff] border-t-transparent animate-spin" /></div>;
+  if (!server) return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-full border-[3px] border-primary border-t-transparent animate-spin" /></div>;
 
   const handleOpenApiConvert = async () => {
     if (!openapiText.trim()) return;
@@ -158,7 +158,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.push("/servers")}><ArrowLeft className="h-4 w-4" /></Button>
           <div>
-            <h2 className="text-2xl font-bold text-foreground">{server.name}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{server.name}</h2>
             <p className="text-sm text-muted-foreground font-mono">{server.namespace}</p>
           </div>
         </div>
@@ -187,7 +187,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Review Status Banner */}
       {server.status === "draft" && (
-        <div className="rounded-xl bg-[#fef5e5] border border-[#ffae1f]/30 px-4 py-3 flex items-center gap-3">
+        <div className="rounded-lg bg-[#fef5e5] border border-[#ffae1f]/30 px-4 py-3 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-[#ffae1f]/15 flex items-center justify-center shrink-0">
             <ClipboardCheck className="h-4 w-4 text-[#ffae1f]" />
           </div>
@@ -202,7 +202,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         </div>
       )}
       {server.status === "pending_review" && (
-        <div className="rounded-xl bg-[#ecf2ff] border border-primary/30 px-4 py-3 flex items-center gap-3">
+        <div className="rounded-lg bg-[var(--primary)/5] border border-primary/30 px-4 py-3 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
             <Loader2 className="h-4 w-4 text-primary animate-spin" />
           </div>
@@ -217,7 +217,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         </div>
       )}
       {server.status === "rejected" && (
-        <div className="rounded-xl bg-[#fdede8] border border-destructive/30 px-4 py-3 flex items-center gap-3">
+        <div className="rounded-lg bg-[#fdede8] border border-destructive/30 px-4 py-3 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-destructive/15 flex items-center justify-center shrink-0">
             <Trash2 className="h-4 w-4 text-destructive" />
           </div>
@@ -234,23 +234,23 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Stats Row */}
       <div className="grid gap-4 sm:grid-cols-5">
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4">
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">{t.servers.version}</p>
           <p className="text-lg font-bold mt-1">{server.version}</p>
         </CardContent></Card>
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4">
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">{t.servers.transport_type}</p>
           <Badge variant="secondary" className="mt-1">{server.transport_type}</Badge>
         </CardContent></Card>
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4">
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">{t.servers.source_type}</p>
           <Badge variant="outline" className="mt-1">{server.source_type}</Badge>
         </CardContent></Card>
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4">
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">{t.common.status}</p>
           <Badge className={`mt-1 border-0 ${server.status === "active" ? "bg-[#13deb9]/10 text-[#13deb9]" : "bg-muted text-muted-foreground"}`}>{server.status}</Badge>
         </CardContent></Card>
-        <Card className={`border rounded-xl ${server.health_status === "healthy" ? "border-[#12b76a]/30 bg-[#13deb9]/[0.02]" : server.health_status === "unknown" ? "border-border" : "border-[#f04438]/30 bg-destructive/[0.02]"}`}>
+        <Card className={`border rounded-lg ${server.health_status === "healthy" ? "border-[#12b76a]/30 bg-[#13deb9]/[0.02]" : server.health_status === "unknown" ? "border-border" : "border-[#f04438]/30 bg-destructive/[0.02]"}`}>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">{locale === "zh" ? "健康状态" : "Health"}</p>
             <div className="flex items-center gap-2 mt-1">
@@ -264,7 +264,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       {(server.description || server.endpoint_url || (server.auth_type && server.auth_type !== "none")) && (
-        <Card className="rounded-xl border border-border shadow-sm">
+        <Card className="rounded-lg border border-border shadow-sm">
           <CardContent className="p-5">
             <div className="grid gap-5 sm:grid-cols-2">
               {server.description && (
@@ -309,7 +309,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* Agent Integration */}
-      <Card className="rounded-xl border border-primary/20 shadow-sm bg-primary/[0.02]">
+      <Card className="rounded-lg border border-primary/20 shadow-sm bg-primary/[0.02]">
         <CardContent className="p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Download className="h-4 w-4 text-primary" />
@@ -318,7 +318,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
           <div className="grid gap-3 sm:grid-cols-2">
             {/* Gateway */}
-            <div className="rounded-xl border border-primary/20 p-3 space-y-2 bg-primary/[0.02]">
+            <div className="rounded-lg border border-primary/20 p-3 space-y-2 bg-primary/[0.02]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-foreground">{locale === "zh" ? "通过 Gateway 连接" : "Connect via Gateway"}</p>
@@ -356,7 +356,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* API Discovery */}
-            <div className="rounded-xl border border-border p-3 space-y-2 bg-card">
+            <div className="rounded-lg border border-border p-3 space-y-2 bg-card">
               <p className="text-xs font-semibold text-foreground">{locale === "zh" ? "公开 API" : "Public API"}</p>
               <p className="text-[11px] text-muted-foreground">{locale === "zh" ? "无需认证的发现接口" : "No-auth discovery endpoints"}</p>
               <code className="block bg-muted rounded-lg px-2.5 py-1.5 text-[11px] font-mono break-all">{baseUrl}/registry/v1/mcp/{server.namespace}</code>
@@ -368,7 +368,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
       {/* OpenAPI to MCP — only show for openapi source type or when user wants to import */}
       {(server.source_type === "openapi" || showOpenapi) && (
-      <Card className="rounded-xl border border-border shadow-sm">
+      <Card className="rounded-lg border border-border shadow-sm">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -376,7 +376,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <h3 className="text-sm font-semibold text-foreground">{t.openapi.title}</h3>
               {server.source_type === "openapi" && <Badge className="bg-primary/10 text-primary border-0 text-[10px] h-5">{t.openapi.source_openapi}</Badge>}
             </div>
-            <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => setShowOpenapi(!showOpenapi)}>
+            <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => setShowOpenapi(!showOpenapi)}>
               {showOpenapi ? t.common.cancel : (server.openapi_spec ? (locale === "zh" ? "重新导入" : "Re-import") : t.openapi.paste)}
             </Button>
           </div>
@@ -510,12 +510,12 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <textarea
                 value={openapiText}
                 onChange={(e) => setOpenapiText(e.target.value)}
-                className="w-full h-48 bg-muted rounded-xl px-3 py-2.5 text-xs font-mono text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
+                className="w-full h-48 bg-muted rounded-lg px-3 py-2.5 text-xs font-mono text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
                 placeholder='{"openapi": "3.0.0", "info": {...}, "paths": {...}}'
               />
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" className="rounded-xl" onClick={() => { setShowOpenapi(false); setOpenapiText(""); }}>{t.common.cancel}</Button>
-                <Button size="sm" className="rounded-xl bg-primary text-white" disabled={!openapiText.trim() || openapiConverting} onClick={handleOpenApiConvert}>
+                <Button variant="outline" size="sm" className="rounded-lg" onClick={() => { setShowOpenapi(false); setOpenapiText(""); }}>{t.common.cancel}</Button>
+                <Button size="sm" className="rounded-lg bg-primary text-white" disabled={!openapiText.trim() || openapiConverting} onClick={handleOpenApiConvert}>
                   {openapiConverting ? t.openapi.converting : t.openapi.save}
                 </Button>
               </div>
@@ -530,7 +530,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* Tunnel (reverse connection) */}
-      <Card className="rounded-xl border border-border shadow-sm">
+      <Card className="rounded-lg border border-border shadow-sm">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -546,7 +546,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 </Badge>
               )}
             </div>
-            <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => setShowCreateTunnel(!showCreateTunnel)}>
+            <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => setShowCreateTunnel(!showCreateTunnel)}>
               {showCreateTunnel ? t.common.cancel : (locale === "zh" ? "新建 Token" : "New Token")}
             </Button>
           </div>
@@ -558,7 +558,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </p>
 
           {showCreateTunnel && (
-            <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-3 mb-3 space-y-2">
+            <div className="rounded-lg border border-primary/20 bg-primary/[0.03] p-3 mb-3 space-y-2">
               <Input
                 placeholder={locale === "zh" ? "Token 名称（如：办公室服务器）" : "Token name (e.g., office-server)"}
                 value={newTunnelName}
@@ -574,7 +574,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           )}
 
           {newTunnelToken?.full_token && (
-            <div className="rounded-xl border border-[#ffae1f]/30 bg-[#fef5e5] p-3 mb-3">
+            <div className="rounded-lg border border-[#ffae1f]/30 bg-[#fef5e5] p-3 mb-3">
               <div className="flex items-start justify-between mb-2">
                 <p className="text-xs font-semibold text-[#ffae1f]">
                   {locale === "zh" ? "请立即复制！此 Token 只显示一次" : "Copy now! This token is shown only once"}
@@ -676,11 +676,11 @@ python agent.py \\
         </TabsList>
 
         <TabsContent value="tools">
-          <Card className="rounded-xl border border-border shadow-sm"><CardContent className="pt-6">
+          <Card className="rounded-lg border border-border shadow-sm"><CardContent className="pt-6">
             {server.tools?.length ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {server.tools.map((tool) => (
-                  <div key={tool.id} className="rounded-xl border border-border p-4 hover:bg-muted/30 transition-colors">
+                  <div key={tool.id} className="rounded-lg border border-border p-4 hover:bg-muted/30 transition-colors">
                     <div className="flex items-center gap-2 mb-2">
                       <Wrench className="h-4 w-4 text-primary shrink-0" />
                       <code className="text-sm font-semibold text-foreground">{tool.name}</code>
@@ -709,7 +709,7 @@ python agent.py \\
         </TabsContent>
 
         <TabsContent value="resources">
-          <Card className="rounded-xl border border-border shadow-sm"><CardContent className="pt-6">
+          <Card className="rounded-lg border border-border shadow-sm"><CardContent className="pt-6">
             {server.resources?.length ? (
               <Table>
                 <TableHeader><TableRow className="bg-muted/30"><TableHead className="text-xs">{t.servers.name}</TableHead><TableHead className="text-xs">URI</TableHead><TableHead className="text-xs">MIME</TableHead></TableRow></TableHeader>
@@ -722,7 +722,7 @@ python agent.py \\
         </TabsContent>
 
         <TabsContent value="prompts">
-          <Card className="rounded-xl border border-border shadow-sm"><CardContent className="pt-6">
+          <Card className="rounded-lg border border-border shadow-sm"><CardContent className="pt-6">
             {server.prompts?.length ? (
               <Table>
                 <TableHeader><TableRow className="bg-muted/30"><TableHead className="text-xs">{t.servers.name}</TableHead><TableHead className="text-xs">{t.servers.description}</TableHead></TableRow></TableHeader>
@@ -735,7 +735,7 @@ python agent.py \\
         </TabsContent>
 
         <TabsContent value="versions">
-          <Card className="rounded-xl border border-border shadow-sm"><CardContent className="pt-6">
+          <Card className="rounded-lg border border-border shadow-sm"><CardContent className="pt-6">
             <p className="text-muted-foreground text-center py-8 text-sm">{t.common.no_data}</p>
           </CardContent></Card>
         </TabsContent>

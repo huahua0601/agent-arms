@@ -45,7 +45,7 @@ export default function SkillDetailPage({ params }: { params: Promise<{ id: stri
   const copyContent = () => { if (skill) { navigator.clipboard.writeText(skill.content); toast.success("Copied!"); } };
   const cats = (t.skills as Record<string, unknown>).categories as Record<string, string>;
 
-  if (!skill) return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-full border-[3px] border-[#465fff] border-t-transparent animate-spin" /></div>;
+  if (!skill) return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-full border-[3px] border-primary border-t-transparent animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
@@ -53,8 +53,8 @@ export default function SkillDetailPage({ params }: { params: Promise<{ id: stri
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.push("/skills")}><ArrowLeft className="h-4 w-4" /></Button>
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl bg-[#5d87ff]/10 flex items-center justify-center"><Sparkles className="h-5 w-5 text-[#5d87ff]" /></div>
-            <div><h2 className="text-2xl font-bold text-foreground">{skill.name}</h2><p className="text-sm text-muted-foreground font-mono">{skill.namespace}</p></div>
+            <div className="h-11 w-11 rounded-lg bg-primary/10 flex items-center justify-center"><Sparkles className="h-5 w-5 text-primary" /></div>
+            <div><h2 className="text-lg font-semibold text-foreground">{skill.name}</h2><p className="text-sm text-muted-foreground font-mono">{skill.namespace}</p></div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -70,7 +70,7 @@ export default function SkillDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Review Status Banner */}
       {skill.status === "draft" && (
-        <div className="rounded-xl bg-[#fef5e5] border border-[#ffae1f]/30 px-4 py-3 flex items-center gap-3">
+        <div className="rounded-lg bg-[#fef5e5] border border-[#ffae1f]/30 px-4 py-3 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-[#ffae1f]/15 flex items-center justify-center shrink-0">
             <ClipboardCheck className="h-4 w-4 text-[#ffae1f]" />
           </div>
@@ -85,7 +85,7 @@ export default function SkillDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
       {skill.status === "pending_review" && (
-        <div className="rounded-xl bg-[#ecf2ff] border border-primary/30 px-4 py-3 flex items-center gap-3">
+        <div className="rounded-lg bg-[#ecf2ff] border border-primary/30 px-4 py-3 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
             <Loader2 className="h-4 w-4 text-primary animate-spin" />
           </div>
@@ -100,7 +100,7 @@ export default function SkillDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
       {skill.status === "rejected" && (
-        <div className="rounded-xl bg-[#fdede8] border border-destructive/30 px-4 py-3 flex items-center gap-3">
+        <div className="rounded-lg bg-[#fdede8] border border-destructive/30 px-4 py-3 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-destructive/15 flex items-center justify-center shrink-0">
             <Trash2 className="h-4 w-4 text-destructive" />
           </div>
@@ -116,23 +116,23 @@ export default function SkillDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       <div className="grid gap-4 sm:grid-cols-4">
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.skills.category}</p><Badge className="mt-1 border-0 bg-[#5d87ff]/10 text-[#5d87ff]">{cats[skill.category] || skill.category}</Badge></CardContent></Card>
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.skills.version}</p><p className="text-lg font-bold mt-1">v{skill.version}</p></CardContent></Card>
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.common.status}</p><Badge className={`mt-1 border-0 ${skill.status === "active" ? "bg-[#13deb9]/10 text-[#13deb9]" : "bg-muted text-muted-foreground"}`}>{skill.status}</Badge></CardContent></Card>
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.skills.public}</p><div className="flex items-center gap-1 mt-1">{skill.is_public ? <><Globe className="h-4 w-4 text-[#13deb9]" /><span className="text-sm font-medium">{t.settings.yes}</span></> : <><Lock className="h-4 w-4 text-[#ffae1f]" /><span className="text-sm font-medium">{t.settings.no}</span></>}</div></CardContent></Card>
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.skills.category}</p><Badge className="mt-1 border-0 bg-[#4f46e5]/10 text-[#4f46e5]">{cats[skill.category] || skill.category}</Badge></CardContent></Card>
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.skills.version}</p><p className="text-lg font-bold mt-1">v{skill.version}</p></CardContent></Card>
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.common.status}</p><Badge className={`mt-1 border-0 ${skill.status === "active" ? "bg-[#13deb9]/10 text-[#13deb9]" : "bg-muted text-muted-foreground"}`}>{skill.status}</Badge></CardContent></Card>
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t.skills.public}</p><div className="flex items-center gap-1 mt-1">{skill.is_public ? <><Globe className="h-4 w-4 text-[#13deb9]" /><span className="text-sm font-medium">{t.settings.yes}</span></> : <><Lock className="h-4 w-4 text-[#ffae1f]" /><span className="text-sm font-medium">{t.settings.no}</span></>}</div></CardContent></Card>
       </div>
 
-      {skill.description && <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-5"><p className="text-sm text-foreground">{skill.description}</p></CardContent></Card>}
+      {skill.description && <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-5"><p className="text-sm text-foreground">{skill.description}</p></CardContent></Card>}
 
       {skill.trigger_pattern && (
-        <Card className="rounded-xl border border-border shadow-sm"><CardContent className="p-5">
+        <Card className="rounded-lg border border-border shadow-sm"><CardContent className="p-5">
           <p className="text-xs text-muted-foreground mb-2">{t.skills.trigger}</p>
           <code className="text-sm bg-muted/50 rounded-lg px-3 py-1.5 font-mono">{skill.trigger_pattern}</code>
         </CardContent></Card>
       )}
 
       {/* Installation Guide */}
-      <Card className="border border-primary/20 rounded-xl bg-primary/[0.03]">
+      <Card className="border border-primary/20 rounded-lg bg-primary/[0.03]">
         <CardContent className="p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Download className="h-4 w-4 text-primary" />
@@ -182,20 +182,20 @@ export default function SkillDetailPage({ params }: { params: Promise<{ id: stri
         </TabsList>
 
         <TabsContent value="content">
-          <Card className="rounded-xl border border-border shadow-sm">
+          <Card className="rounded-lg border border-border shadow-sm">
             <CardContent className="p-5">
-              <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-foreground bg-muted/30 rounded-xl p-5 max-h-[600px] overflow-y-auto">{skill.content}</pre>
+              <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-foreground bg-muted/30 rounded-lg p-5 max-h-[600px] overflow-y-auto">{skill.content}</pre>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="versions">
-          <Card className="rounded-xl border border-border shadow-sm">
+          <Card className="rounded-lg border border-border shadow-sm">
             <CardContent className="p-5">
               {(skill as unknown as { versions?: Array<{ id: number; version: string; changelog?: string; published_at: string }> }).versions?.length ? (
                 <div className="space-y-3">
                   {(skill as unknown as { versions: Array<{ id: number; version: string; changelog?: string; published_at: string }> }).versions.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                    <div key={v.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                       <div><p className="text-sm font-medium">v{v.version}</p>{v.changelog && <p className="text-xs text-muted-foreground mt-0.5">{v.changelog}</p>}</div>
                       <span className="text-xs text-muted-foreground">{new Date(v.published_at).toLocaleDateString()}</span>
                     </div>

@@ -4,8 +4,8 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+asyncpg://mcp_registry:mcp_registry_dev_123@localhost:5432/mcp_registry"
-    SYNC_DATABASE_URL: str = "postgresql://mcp_registry:mcp_registry_dev_123@localhost:5432/mcp_registry"
+    DATABASE_URL: str = ""
+    SYNC_DATABASE_URL: str = ""
     REDIS_URL: str = "redis://localhost:6379/0"
     JWT_SECRET_KEY: str = "dev-secret"
     JWT_ALGORITHM: str = "HS256"
@@ -15,6 +15,13 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_PASSWORD: str = "admin123"
     DEFAULT_ADMIN_EMAIL: str = "admin@agenthub.local"
     RATE_LIMIT_PER_MINUTE: int = 120
+
+    # DB components (used when DATABASE_URL is not set)
+    DB_HOST: str = "localhost"
+    DB_PORT: str = "5432"
+    DB_NAME: str = "mcp_registry"
+    DB_USERNAME: str = "mcp_registry"
+    DB_PASSWORD: str = "mcp_registry_dev_123"
 
     # OAuth
     GITHUB_CLIENT_ID: str = ""
@@ -40,12 +47,23 @@ class Settings(BaseSettings):
     AGENTCORE_ENABLED: bool = False
     AGENTCORE_GATEWAY_ENDPOINT: str = ""
     AGENTCORE_RUNTIME_ENDPOINT: str = ""
+    AGENTCORE_RUNTIME_ROLE_ARN: str = ""
     AGENTCORE_MEMORY_NAMESPACE: str = "agent-arms"
     AGENTCORE_IDENTITY_WORKLOAD_ID: str = ""
     AGENTCORE_OBSERVABILITY_ENABLED: bool = False
 
     class Config:
         env_file = ".env"
+
+    def get_database_url(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        return f"postgresql+asyncpg://{self.DB_USERNAME}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+    def get_sync_database_url(self) -> str:
+        if self.SYNC_DATABASE_URL:
+            return self.SYNC_DATABASE_URL
+        return f"postgresql://{self.DB_USERNAME}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
 settings = Settings()

@@ -26,7 +26,6 @@ class McpServer(Base):
     readme = Column(Text); icon_url = Column(String(512))
     icon_path = Column(String(512))
     owner_id = Column(Integer, nullable=False, index=True)
-    team_id = Column(Integer, ForeignKey("teams.id"), index=True)
     status = Column(String(32), default="active"); downloads = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

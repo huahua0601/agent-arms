@@ -18,8 +18,6 @@ class ReviewResponse(BaseModel):
     resource_type: str
     resource_id: int
     resource_name: Optional[str] = None
-    team_id: int
-    team_slug: Optional[str] = None
     submitter_id: int
     submitter_name: Optional[str] = None
     status: str

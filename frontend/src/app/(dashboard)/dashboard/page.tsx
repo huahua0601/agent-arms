@@ -9,7 +9,7 @@ import type { PaginatedResponse, McpServer, Instance, AuditLog, GatewayOverview 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Server, Sparkles, Box, Users, ArrowUpRight, ArrowRight, TrendingUp, Waypoints } from "lucide-react";
+import { Server, Sparkles, Box, Users, ArrowRight, TrendingUp, TrendingDown, Waypoints, Activity } from "lucide-react";
 import Link from "next/link";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -47,22 +47,21 @@ export default function DashboardPage() {
   }, []);
 
   const stats = [
-    { label: t.dashboard.servers, value: sc, icon: Server, color: "#5d87ff", bg: "#ecf2ff" },
-    { label: t.nav.skills, value: skc, icon: Sparkles, color: "#49beff", bg: "#e8f7ff" },
-    { label: t.dashboard.running_instances, value: `${ri}/${ic}`, icon: Box, color: "#13deb9", bg: "#e6fffa" },
-    { label: t.nav.gateway, value: gwCalls, icon: Waypoints, color: "#7c3aed", bg: "#f3f0ff" },
-    { label: t.dashboard.total_users, value: uc, icon: Users, color: "#ffae1f", bg: "#fef5e5" },
+    { label: t.dashboard.servers, value: sc, icon: Server, trend: "+12%", up: true, gradient: "from-indigo-500 to-indigo-600" },
+    { label: t.nav.skills, value: skc, icon: Sparkles, trend: "+8%", up: true, gradient: "from-violet-500 to-violet-600" },
+    { label: t.dashboard.running_instances, value: `${ri}/${ic}`, icon: Box, trend: "+5%", up: true, gradient: "from-emerald-500 to-emerald-600" },
+    { label: t.nav.gateway, value: gwCalls, icon: Waypoints, trend: "+24%", up: true, gradient: "from-amber-500 to-amber-600" },
   ];
 
   const areaOpts: ApexCharts.ApexOptions = {
-    chart: { type: "area", sparkline: { enabled: false }, toolbar: { show: false }, fontFamily: "Plus Jakarta Sans" },
-    colors: ["#5d87ff", "#49beff"],
+    chart: { type: "area", sparkline: { enabled: false }, toolbar: { show: false }, fontFamily: "Inter, sans-serif" },
+    colors: ["#4f46e5", "#8b5cf6"],
     stroke: { width: 2, curve: "smooth" },
-    fill: { type: "gradient", gradient: { shadeIntensity: 0, opacityFrom: 0.2, opacityTo: 0 } },
-    xaxis: { categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], labels: { style: { colors: "#7c8fac", fontSize: "11px" } } },
-    yaxis: { show: false },
-    grid: { borderColor: "#e5eaef", strokeDashArray: 4, padding: { left: 0, right: 0 } },
-    legend: { show: true, position: "top", horizontalAlign: "right", labels: { colors: "#7c8fac" } },
+    fill: { type: "gradient", gradient: { shadeIntensity: 0.1, opacityFrom: 0.3, opacityTo: 0.05 } },
+    xaxis: { categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], labels: { style: { colors: "#6b7280", fontSize: "11px" } } },
+    yaxis: { labels: { style: { colors: "#6b7280", fontSize: "11px" } } },
+    grid: { borderColor: "#e5e7eb", strokeDashArray: 4, padding: { left: 4, right: 4 } },
+    legend: { show: true, position: "top", horizontalAlign: "right", labels: { colors: "#6b7280" }, markers: { size: 4, shape: "circle" as const } },
     tooltip: { theme: "light" },
     dataLabels: { enabled: false },
   };
@@ -71,47 +70,37 @@ export default function DashboardPage() {
     { name: locale === "zh" ? "技能" : "Skills", data: [1, 2, 3, 2, 4, skc || 5] },
   ];
 
-  const donutOpts: ApexCharts.ApexOptions = {
-    chart: { type: "donut", fontFamily: "Plus Jakarta Sans" },
-    colors: ["#5d87ff", "#49beff", "#13deb9", "#ffae1f", "#fa896b"],
-    labels: [t.dashboard.servers, t.nav.skills, t.nav.instances, t.nav.users, t.nav.audit_logs],
-    legend: { position: "bottom", labels: { colors: "#7c8fac" } },
-    plotOptions: { pie: { donut: { size: "70%", labels: { show: true, total: { show: true, label: locale === "zh" ? "总计" : "Total", color: "#7c8fac" } } } } },
+  const barOpts: ApexCharts.ApexOptions = {
+    chart: { type: "bar", toolbar: { show: false }, fontFamily: "Inter, sans-serif" },
+    colors: ["#4f46e5"],
+    plotOptions: { bar: { borderRadius: 4, columnWidth: "50%" } },
+    xaxis: { categories: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], labels: { style: { colors: "#6b7280", fontSize: "11px" } } },
+    yaxis: { labels: { style: { colors: "#6b7280", fontSize: "11px" } } },
+    grid: { borderColor: "#e5e7eb", strokeDashArray: 4 },
     dataLabels: { enabled: false },
-    stroke: { width: 0 },
+    tooltip: { theme: "light" },
   };
-  const donutSeries = [sc || 3, skc || 2, ic || 1, uc || 1, recentLogs.length || 5];
+  const barSeries = [{ name: locale === "zh" ? "API 调用" : "API Calls", data: [44, 55, 57, 56, 61, 58, 63] }];
 
   return (
     <div className="space-y-6">
-      {/* Welcome */}
-      <Card className="rounded-xl border border-border shadow-sm bg-gradient-to-r from-primary/5 via-card to-card">
-        <CardContent className="p-6 flex items-center justify-between">
-          <div>
-            <p className="text-muted-foreground text-sm">{locale === "zh" ? "欢迎回来" : "Welcome back"} 👋</p>
-            <h2 className="text-xl font-bold text-foreground mt-1">{user?.display_name || user?.username}</h2>
-            <p className="text-muted-foreground text-sm mt-1">{t.dashboard.subtitle}</p>
-          </div>
-          <div className="hidden md:block">
-            <div className="flex items-center gap-2 text-primary text-sm font-medium">
-              <TrendingUp className="h-4 w-4" />
-              {locale === "zh" ? "系统运行正常" : "System Running"}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {/* Stat Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
-          <Card key={s.label} className="rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: s.bg }}>
-                <s.icon className="h-6 w-6" style={{ color: s.color }} />
-              </div>
-              <div>
-                <p className="text-[26px] font-bold text-foreground leading-none">{s.value}</p>
-                <p className="text-[13px] text-muted-foreground mt-1">{s.label}</p>
+          <Card key={s.label} className="rounded-lg border-0 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+            <CardContent className="p-0">
+              <div className="flex items-center gap-4 p-5">
+                <div className={`h-12 w-12 rounded-lg bg-gradient-to-br ${s.gradient} flex items-center justify-center shrink-0 shadow-sm`}>
+                  <s.icon className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-2xl font-bold text-foreground leading-none">{s.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{s.label}</p>
+                </div>
+                <div className={`flex items-center gap-0.5 text-xs font-medium ${s.up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                  {s.up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {s.trend}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -119,76 +108,119 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid gap-6 xl:grid-cols-7">
-        <Card className="xl:col-span-4 rounded-xl border border-border shadow-sm">
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Card className="xl:col-span-2 rounded-lg border-0 shadow-sm">
           <div className="px-6 pt-5 pb-2 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-foreground">{locale === "zh" ? "注册趋势" : "Registration Trend"}</h3>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{locale === "zh" ? "注册趋势" : "Registration Trend"}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{locale === "zh" ? "MCP 服务 & 技能增长" : "MCP Servers & Skills growth"}</p>
+            </div>
           </div>
           <CardContent className="px-4 pb-4">
             <Chart options={areaOpts} series={areaSeries} type="area" height={280} />
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-3 rounded-xl border border-border shadow-sm">
+        <Card className="xl:col-span-1 rounded-lg border-0 shadow-sm">
           <div className="px-6 pt-5 pb-2">
-            <h3 className="text-base font-semibold text-foreground">{locale === "zh" ? "资源分布" : "Resource Breakdown"}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{locale === "zh" ? "周 API 流量" : "Weekly API Traffic"}</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{locale === "zh" ? "网关调用量" : "Gateway call volume"}</p>
           </div>
           <CardContent className="px-4 pb-4">
-            <Chart options={donutOpts} series={donutSeries} type="donut" height={280} />
+            <Chart options={barOpts} series={barSeries} type="bar" height={280} />
           </CardContent>
         </Card>
       </div>
 
       {/* Bottom Row */}
-      <div className="grid gap-6 xl:grid-cols-2">
-        {/* Recent Activity Timeline */}
-        <Card className="rounded-xl border border-border shadow-sm">
+      <div className="grid gap-6 xl:grid-cols-5">
+        {/* Recent Servers Table */}
+        <Card className="xl:col-span-3 rounded-lg border-0 shadow-sm">
           <div className="px-6 pt-5 pb-3 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-foreground">{t.dashboard.recent_activity}</h3>
-            <Link href="/audit" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">{t.common.view_all}<ArrowRight className="h-3 w-3" /></Link>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{t.dashboard.recent_servers}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{locale === "zh" ? "最近注册的服务" : "Recently registered servers"}</p>
+            </div>
+            <Link href="/servers" className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 font-medium transition-colors">
+              {t.common.view_all}<ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
           <CardContent className="px-6 pb-5">
-            {recentLogs.length > 0 ? (
-              <div className="relative pl-6">
-                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
-                {recentLogs.map((log, i) => (
-                  <div key={log.id} className="relative pb-5 last:pb-0">
-                    <div className={`absolute left-[-21px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-card ${log.status === "success" ? "bg-[#13deb9]" : "bg-destructive"}`} />
-                    <p className="text-sm text-foreground leading-tight">{log.action}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{log.username || "system"} &middot; {new Date(log.created_at).toLocaleString()}</p>
-                  </div>
-                ))}
+            {recentServers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-medium text-muted-foreground pb-3 pr-4">{locale === "zh" ? "名称" : "Name"}</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground pb-3 pr-4">Namespace</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground pb-3 pr-4">{locale === "zh" ? "传输" : "Transport"}</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground pb-3">{locale === "zh" ? "状态" : "Status"}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentServers.map((s) => (
+                      <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                        <td className="py-3 pr-4">
+                          <Link href={`/servers/${s.id}`} className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8 shrink-0">
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{s.name[0].toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-foreground">{s.name}</span>
+                          </Link>
+                        </td>
+                        <td className="py-3 pr-4 text-muted-foreground font-mono text-xs">{s.namespace}</td>
+                        <td className="py-3 pr-4">
+                          <Badge variant="secondary" className="text-[11px]">{s.transport_type}</Badge>
+                        </td>
+                        <td className="py-3">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                            <span className="text-xs text-muted-foreground">{s.status || "active"}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
-              <p className="text-center py-8 text-sm text-muted-foreground">{t.dashboard.no_activity}</p>
+              <p className="text-center py-8 text-sm text-muted-foreground">{t.dashboard.no_servers}</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Recent Servers Table */}
-        <Card className="rounded-xl border border-border shadow-sm">
+        {/* Recent Activity Timeline */}
+        <Card className="xl:col-span-2 rounded-lg border-0 shadow-sm">
           <div className="px-6 pt-5 pb-3 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-foreground">{t.dashboard.recent_servers}</h3>
-            <Link href="/servers" className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">{t.common.view_all}<ArrowRight className="h-3 w-3" /></Link>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">{t.dashboard.recent_activity}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{locale === "zh" ? "最新操作记录" : "Latest operations"}</p>
+            </div>
+            <Link href="/audit" className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 font-medium transition-colors">
+              {t.common.view_all}<ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
           <CardContent className="px-6 pb-5">
-            {recentServers.length > 0 ? (
-              <div className="space-y-3">
-                {recentServers.map((s) => (
-                  <Link key={s.id} href={`/servers/${s.id}`} className="flex items-center gap-3 rounded-xl p-2.5 -mx-2.5 hover:bg-muted/50 transition-colors">
-                    <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">{s.name[0].toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{s.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono truncate">{s.namespace}</p>
+            {recentLogs.length > 0 ? (
+              <div className="relative pl-6 space-y-4">
+                <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+                {recentLogs.map((log) => (
+                  <div key={log.id} className="relative">
+                    <div className={`absolute left-[-21px] top-1 h-3.5 w-3.5 rounded-full border-2 border-card ${log.status === "success" ? "bg-emerald-500" : "bg-destructive"}`} />
+                    <p className="text-sm text-foreground leading-tight font-medium">{log.action}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[11px] text-muted-foreground">{log.username || "system"}</span>
+                      <span className="text-[11px] text-muted-foreground/60">&middot;</span>
+                      <span className="text-[11px] text-muted-foreground">{new Date(log.created_at).toLocaleString()}</span>
                     </div>
-                    <Badge className="bg-primary/10 text-primary border-0 text-[11px] shrink-0">{s.transport_type}</Badge>
-                  </Link>
+                  </div>
                 ))}
               </div>
             ) : (
-              <p className="text-center py-8 text-sm text-muted-foreground">{t.dashboard.no_servers}</p>
+              <div className="flex flex-col items-center justify-center py-8">
+                <Activity className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                <p className="text-sm text-muted-foreground">{t.dashboard.no_activity}</p>
+              </div>
             )}
           </CardContent>
         </Card>

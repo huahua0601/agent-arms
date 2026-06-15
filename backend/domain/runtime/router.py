@@ -46,6 +46,20 @@ async def restart(iid: int, _=Depends(PermissionChecker(["mcp_instance:update"])
 async def delete(iid: int, _=Depends(PermissionChecker(["mcp_instance:delete"])), db: AsyncSession = Depends(get_db)):
     if not await svc.delete_instance(db, iid): raise HTTPException(404)
 
+@router.patch("/instances/{iid}", response_model=S.InstanceResponse)
+async def patch_instance(iid: int, body: dict, _=Depends(PermissionChecker(["mcp_instance:update"])), db: AsyncSession = Depends(get_db)):
+    inst = await svc.get_instance(db, iid)
+    if not inst: raise HTTPException(404)
+    for key in ("container_id", "status", "runtime_type"):
+        if key in body:
+            setattr(inst, key, body[key])
+    if body.get("status") == "running":
+        import datetime
+        inst.started_at = datetime.datetime.utcnow()
+    await db.commit()
+    await db.refresh(inst)
+    return inst
+
 @router.get("/instances/{iid}/logs", response_model=S.LogsResponse)
 async def logs(iid: int, tail: int = 200, _=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     l = await svc.get_logs(db, iid, tail)

@@ -32,17 +32,28 @@ class TunnelConnection:
 
     async def call(self, json_rpc_body: dict, timeout: float = 30.0) -> dict:
         """Send a JSON-RPC request to the agent and await its response."""
-        if self._closed:
-            raise RuntimeError("Tunnel connection closed")
-
         req_id = json_rpc_body.get("id")
         if req_id is None:
             req_id = str(uuid.uuid4())
             json_rpc_body = {**json_rpc_body, "id": req_id}
+        return await self.send(json_rpc_body, req_id=str(req_id), envelope_type="request", timeout=timeout)
 
-        envelope = {"type": "request", "req_id": str(req_id), "payload": json_rpc_body}
+    async def send(self, payload: dict, req_id: Optional[str] = None,
+                   envelope_type: str = "request", timeout: float = 30.0) -> dict:
+        """Send an arbitrary payload to the agent under a given envelope type and await response.
+
+        Used by both the MCP JSON-RPC path (envelope_type="request") and the
+        generic HTTP proxy path (envelope_type="http_request").
+        """
+        if self._closed:
+            raise RuntimeError("Tunnel connection closed")
+
+        if req_id is None:
+            req_id = str(uuid.uuid4())
+
+        envelope = {"type": envelope_type, "req_id": req_id, "payload": payload}
         fut: asyncio.Future = asyncio.get_event_loop().create_future()
-        self._pending[str(req_id)] = fut
+        self._pending[req_id] = fut
 
         try:
             async with self._lock:
@@ -50,7 +61,7 @@ class TunnelConnection:
             response = await asyncio.wait_for(fut, timeout=timeout)
             return response
         finally:
-            self._pending.pop(str(req_id), None)
+            self._pending.pop(req_id, None)
 
     def handle_response(self, envelope: dict):
         """Called when agent sends back a response envelope."""

@@ -52,15 +52,15 @@ export default function NewServerPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">{t.servers.register_title}</h2>
-        <p className="text-sm text-muted-foreground mt-1">{t.servers.register_desc}</p>
+        <h2 className="text-lg font-semibold text-foreground">{t.servers.register_title}</h2>
+        <p className="text-sm text-muted-foreground">{t.servers.register_desc}</p>
       </div>
 
       <div className="flex items-center gap-2">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             <div className={`rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium ${
-              i <= step ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+              i <= step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
             }`}>{i < step ? <Check className="h-4 w-4" /> : i + 1}</div>
             <span className={`text-sm ${i <= step ? "font-medium" : "text-muted-foreground"}`}>{s}</span>
             {i < STEPS.length - 1 && <div className="w-8 h-px bg-border" />}
@@ -68,7 +68,7 @@ export default function NewServerPage() {
         ))}
       </div>
 
-      <Card className="rounded-xl border border-border shadow-sm">
+      <Card className="rounded-lg border-0 shadow-sm">
         <CardHeader>
           <CardTitle>{STEPS[step]}</CardTitle>
         </CardHeader>
