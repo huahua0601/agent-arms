@@ -14,6 +14,7 @@ No public IP or inbound firewall rule required on your side.
 """
 import argparse
 import asyncio
+import base64
 import json
 import logging
 import platform
@@ -31,17 +32,29 @@ RECONNECT_DELAY_BASE = 1.0
 RECONNECT_DELAY_MAX = 30.0
 PING_INTERVAL = 30.0
 
+# Hop-by-hop headers that should not be forwarded to the local backend.
+_HOP_BY_HOP = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade", "host", "content-length",
+}
+
 
 class TunnelAgent:
     def __init__(self, registry_url: str, token: str, local_url: str,
                  auth_header: Optional[str] = None, auth_value: Optional[str] = None,
-                 name: Optional[str] = None):
+                 name: Optional[str] = None, mode: str = "mcp",
+                 es_user: Optional[str] = None, es_pass: Optional[str] = None,
+                 verify_certs: bool = True):
         self.registry_url = registry_url.rstrip("/")
         self.token = token
         self.local_url = local_url.rstrip("/")
         self.auth_header = auth_header
         self.auth_value = auth_value
         self.name = name or platform.node()
+        self.mode = mode
+        self.es_user = es_user
+        self.es_pass = es_pass
+        self.verify_certs = verify_certs
         self._http: Optional[httpx.AsyncClient] = None
         self._ws = None
         self._session_id: Optional[str] = None
@@ -57,7 +70,7 @@ class TunnelAgent:
         return f"{base}/tunnel/connect?token={self.token}"
 
     async def start(self):
-        self._http = httpx.AsyncClient(timeout=30.0)
+        self._http = httpx.AsyncClient(timeout=60.0, verify=self.verify_certs)
         try:
             await self._run_loop()
         finally:
@@ -137,6 +150,8 @@ class TunnelAgent:
                 etype = envelope.get("type")
                 if etype == "request":
                     asyncio.create_task(self._handle_request(ws, envelope))
+                elif etype == "http_request":
+                    asyncio.create_task(self._handle_http_request(ws, envelope))
                 elif etype == "pong":
                     pass
         finally:
@@ -171,6 +186,61 @@ class TunnelAgent:
             "req_id": req_id,
             "payload": response,
         }))
+
+    async def _handle_http_request(self, ws, envelope: dict):
+        """Handle a generic HTTP request envelope (http-proxy mode).
+
+        Reconstructs the HTTP request against the local target (e.g. private ES),
+        injects credentials, and ships the HTTP response back over the tunnel.
+        """
+        req_id = envelope.get("req_id")
+        payload = envelope.get("payload", {})
+        method = payload.get("method", "GET")
+        path = payload.get("path", "/")
+        query = payload.get("query", "")
+        logger.info("-> HTTP %s %s (req_id=%s)", method, path, req_id)
+
+        try:
+            response = await self._forward_http(method, path, query, payload)
+        except Exception as e:
+            logger.error("HTTP forward failed: %s", e)
+            response = {"error": str(e)}
+
+        await ws.send(json.dumps({
+            "type": "response",
+            "req_id": req_id,
+            "payload": response,
+        }))
+
+    async def _forward_http(self, method: str, path: str, query: str, payload: dict) -> dict:
+        url = self.local_url + path
+        if query:
+            url = f"{url}?{query}"
+
+        headers = {
+            k: v for k, v in (payload.get("headers", {}) or {}).items()
+            if k.lower() not in _HOP_BY_HOP
+        }
+        if self.auth_header and self.auth_value:
+            headers[self.auth_header] = self.auth_value
+
+        body_b64 = payload.get("body_b64", "")
+        content = base64.b64decode(body_b64) if body_b64 else None
+
+        auth = (self.es_user, self.es_pass) if self.es_user else None
+
+        start = time.time()
+        resp = await self._http.request(
+            method, url, headers=headers, content=content, auth=auth,
+        )
+        elapsed = round((time.time() - start) * 1000, 2)
+        logger.info("   <- %d (%.1fms)", resp.status_code, elapsed)
+
+        return {
+            "status": resp.status_code,
+            "headers": dict(resp.headers),
+            "body_b64": base64.b64encode(resp.content).decode("ascii") if resp.content else "",
+        }
 
     async def _forward_to_local(self, rpc: dict) -> dict:
         method = rpc.get("method", "")
@@ -215,9 +285,17 @@ def main():
     parser = argparse.ArgumentParser(description="AgentArms Tunnel Agent")
     parser.add_argument("--registry", required=True, help="Registry URL (e.g., https://registry.example.com)")
     parser.add_argument("--token", required=True, help="Tunnel token from registry")
-    parser.add_argument("--local", required=True, help="Local MCP server URL (e.g., http://localhost:8080/mcp)")
+    parser.add_argument("--local", required=True,
+                        help="Local target URL. mcp mode: MCP server (e.g. http://localhost:8080/mcp). "
+                             "http-proxy mode: backend base URL (e.g. https://internal-es:9200)")
+    parser.add_argument("--mode", choices=["mcp", "http-proxy"], default="mcp",
+                        help="mcp: forward MCP JSON-RPC (default). http-proxy: forward generic HTTP (e.g. ElasticSearch)")
     parser.add_argument("--auth-header", help="Optional auth header name for local server")
     parser.add_argument("--auth-value", help="Optional auth header value for local server")
+    parser.add_argument("--es-user", help="(http-proxy) Basic-auth username injected into backend requests")
+    parser.add_argument("--es-pass", help="(http-proxy) Basic-auth password injected into backend requests")
+    parser.add_argument("--no-verify-certs", action="store_true",
+                        help="(http-proxy) Disable TLS verification for the backend (self-signed ES)")
     parser.add_argument("--name", help="Agent display name (defaults to hostname)")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
@@ -235,6 +313,10 @@ def main():
         auth_header=args.auth_header,
         auth_value=args.auth_value,
         name=args.name,
+        mode=args.mode,
+        es_user=args.es_user,
+        es_pass=args.es_pass,
+        verify_certs=not args.no_verify_certs,
     )
 
     loop = asyncio.new_event_loop()

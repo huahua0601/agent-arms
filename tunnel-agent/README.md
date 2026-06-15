@@ -35,6 +35,32 @@ Public Registry (AgentArms)
 pip install -r requirements.txt
 ```
 
+## Run with Docker (recommended for private networks)
+
+No Python needed on the target host — just Docker. Build the image:
+
+```bash
+./build.sh                 # builds agentarms-tunnel-agent:latest
+./build.sh --save          # also exports an offline tarball (docker save)
+```
+
+Run it (http-proxy mode, e.g. to reach a private ElasticSearch/OpenSearch):
+
+```bash
+docker run --rm --name tunnel-agent agentarms-tunnel-agent:latest \
+  --registry https://agent-arms.seanguo.people.aws.dev \
+  --token tnl_xxxxxxxx \
+  --mode http-proxy \
+  --local https://internal-es:9200 \
+  --es-user <user> --es-pass <pass> \
+  --no-verify-certs
+```
+
+To reach a service running on the Docker host itself, use
+`host.docker.internal` and add `--add-host=host.docker.internal:host-gateway`
+(Linux). For an offline host, copy the tarball produced by `./build.sh --save`
+and load it with `docker load -i agentarms-tunnel-agent-latest.tar`.
+
 ## Run
 
 ```bash

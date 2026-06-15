@@ -1,2 +1,2 @@
-websockets>=13.0
-httpx>=0.28.0
+websockets>=13.0,<16.0
+httpx>=0.28.0,<0.29.0
