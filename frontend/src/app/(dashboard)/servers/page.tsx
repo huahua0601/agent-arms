@@ -100,8 +100,28 @@ export default function ServersPage() {
                     <span className="flex items-center gap-1"><FileText className="h-3 w-3" />{s.resource_count ?? 0}</span>
                     <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" />{s.prompt_count ?? 0}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className={`h-2 w-2 rounded-full ${s.health_status === "healthy" ? "bg-emerald-500" : s.health_status === "offline" || s.health_status === "error" || s.health_status === "unhealthy" ? "bg-destructive" : "bg-gray-300"}`} />
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const hs = s.health_status || "unknown";
+                      const dot = hs === "healthy" ? "bg-emerald-500" :
+                        hs === "timeout" ? "bg-amber-500" :
+                        hs === "offline" ? "bg-gray-400" :
+                        hs === "unknown" ? "bg-gray-300" : "bg-destructive";
+                      const textColor = hs === "healthy" ? "text-emerald-600 dark:text-emerald-400" :
+                        hs === "timeout" ? "text-amber-600 dark:text-amber-400" :
+                        hs === "unknown" ? "text-muted-foreground" : "text-destructive";
+                      const label = (t.servers as Record<string, string>)[`health_${hs}`] || hs;
+                      return (
+                        <span
+                          className="flex items-center gap-1.5"
+                          title={s.health_latency_ms != null ? `${label} · ${Math.round(s.health_latency_ms)}ms` : label}
+                        >
+                          <span className={`h-2 w-2 rounded-full ${dot} ${hs === "healthy" ? "animate-pulse" : ""}`} />
+                          <span className={`text-[10px] font-medium ${textColor}`}>{label}</span>
+                        </span>
+                      );
+                    })()}
+                    <span className="h-3 w-px bg-border" />
                     <span className={`text-[10px] font-medium ${s.status === "active" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>{s.status}</span>
                   </div>
                 </div>
