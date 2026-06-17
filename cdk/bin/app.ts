@@ -55,6 +55,7 @@ new FrontendStack(app, `${projectName}-frontend-${environment}`, {
   environment,
   backendService: backend.service,
   backendUrl: backend.loadBalancerDnsName,
+  backendLoadBalancer: backend.loadBalancer,
 });
 
 app.synth();

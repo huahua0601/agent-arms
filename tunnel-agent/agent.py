@@ -44,7 +44,7 @@ class TunnelAgent:
                  auth_header: Optional[str] = None, auth_value: Optional[str] = None,
                  name: Optional[str] = None, mode: str = "mcp",
                  es_user: Optional[str] = None, es_pass: Optional[str] = None,
-                 verify_certs: bool = True):
+                 verify_certs: bool = True, health_path: str = "/_cluster/health"):
         self.registry_url = registry_url.rstrip("/")
         self.token = token
         self.local_url = local_url.rstrip("/")
@@ -55,6 +55,7 @@ class TunnelAgent:
         self.es_user = es_user
         self.es_pass = es_pass
         self.verify_certs = verify_certs
+        self.health_path = health_path
         self._http: Optional[httpx.AsyncClient] = None
         self._ws = None
         self._session_id: Optional[str] = None
@@ -152,6 +153,8 @@ class TunnelAgent:
                     asyncio.create_task(self._handle_request(ws, envelope))
                 elif etype == "http_request":
                     asyncio.create_task(self._handle_http_request(ws, envelope))
+                elif etype == "health_check":
+                    asyncio.create_task(self._handle_health_check(ws, envelope))
                 elif etype == "pong":
                     pass
         finally:
@@ -210,6 +213,60 @@ class TunnelAgent:
             "type": "response",
             "req_id": req_id,
             "payload": response,
+        }))
+
+    async def _handle_health_check(self, ws, envelope: dict):
+        """Probe the local backend health (e.g. OpenSearch /_cluster/health) and
+        report the result back over the tunnel.
+
+        The registry sends a `health_check` envelope; the agent — sitting right
+        next to the backend — performs the probe using the backend's native
+        health endpoint and returns a normalized status. This is protocol-agnostic
+        and works regardless of whether the tunnel runs in mcp or http-proxy mode.
+        """
+        req_id = envelope.get("req_id")
+        payload = envelope.get("payload", {}) or {}
+        path = payload.get("health_path") or self.health_path
+        if not path.startswith("/"):
+            path = "/" + path
+        url = self.local_url + path
+
+        headers = {}
+        if self.auth_header and self.auth_value:
+            headers[self.auth_header] = self.auth_value
+        auth = (self.es_user, self.es_pass) if self.es_user else None
+
+        start = time.time()
+        try:
+            resp = await self._http.get(url, headers=headers, auth=auth)
+            latency = round((time.time() - start) * 1000, 2)
+            detail = None
+            try:
+                detail = resp.json()
+            except Exception:
+                detail = resp.text[:200] if resp.text else None
+
+            if 200 <= resp.status_code < 400:
+                # If OpenSearch cluster health is reported, surface its color.
+                cluster = detail.get("status") if isinstance(detail, dict) else None
+                status = "unhealthy" if cluster == "red" else "healthy"
+                result = {"status": status, "latency_ms": latency,
+                          "http_status": resp.status_code, "detail": detail}
+            else:
+                result = {"status": "unhealthy", "latency_ms": latency,
+                          "http_status": resp.status_code, "error": f"HTTP {resp.status_code}"}
+        except httpx.ConnectError as e:
+            result = {"status": "offline", "latency_ms": None, "error": f"Connection refused: {e}"}
+        except httpx.TimeoutException:
+            result = {"status": "timeout", "latency_ms": None, "error": "Health probe timeout"}
+        except Exception as e:
+            result = {"status": "error", "latency_ms": None, "error": str(e)}
+
+        logger.info("health_check %s -> %s (%sms)", url, result.get("status"), result.get("latency_ms"))
+        await ws.send(json.dumps({
+            "type": "response",
+            "req_id": req_id,
+            "payload": result,
         }))
 
     async def _forward_http(self, method: str, path: str, query: str, payload: dict) -> dict:
@@ -296,6 +353,9 @@ def main():
     parser.add_argument("--es-pass", help="(http-proxy) Basic-auth password injected into backend requests")
     parser.add_argument("--no-verify-certs", action="store_true",
                         help="(http-proxy) Disable TLS verification for the backend (self-signed ES)")
+    parser.add_argument("--health-path", default="/_cluster/health",
+                        help="Path probed for health checks (default: /_cluster/health for OpenSearch). "
+                             "Use / for a lightweight liveness check.")
     parser.add_argument("--name", help="Agent display name (defaults to hostname)")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
@@ -317,6 +377,7 @@ def main():
         es_user=args.es_user,
         es_pass=args.es_pass,
         verify_certs=not args.no_verify_certs,
+        health_path=args.health_path,
     )
 
     loop = asyncio.new_event_loop()

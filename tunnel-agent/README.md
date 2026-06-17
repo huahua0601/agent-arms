@@ -83,15 +83,31 @@ python agent.py \
 
 ## Options
 
-| Flag            | Description                                          |
-| --------------- | ---------------------------------------------------- |
-| `--registry`    | Public registry URL (http or https)                  |
-| `--token`       | Tunnel token from the registry UI                    |
-| `--local`       | Local MCP server endpoint                            |
-| `--auth-header` | Optional auth header to inject into local calls      |
-| `--auth-value`  | Value for the auth header                            |
-| `--name`        | Display name shown in the registry (default: hostname)|
-| `--verbose`     | Verbose logging                                      |
+| Flag             | Description                                                            |
+| ---------------- | ---------------------------------------------------------------------- |
+| `--registry`     | Public registry URL (http or https)                                    |
+| `--token`        | Tunnel token from the registry UI                                      |
+| `--local`        | Local target. mcp mode: MCP server URL. http-proxy mode: backend base URL |
+| `--mode`         | `mcp` (default, forward JSON-RPC) or `http-proxy` (forward raw HTTP, e.g. OpenSearch) |
+| `--es-user`      | (http-proxy) Basic-auth username injected into backend requests        |
+| `--es-pass`      | (http-proxy) Basic-auth password injected into backend requests        |
+| `--no-verify-certs` | (http-proxy) Disable TLS verification for self-signed backends      |
+| `--health-path`  | Path probed for health checks (default: `/_cluster/health` for OpenSearch; use `/` for a lightweight liveness check) |
+| `--auth-header`  | Optional auth header to inject into local calls                        |
+| `--auth-value`   | Value for the auth header                                              |
+| `--name`         | Display name shown in the registry (default: hostname)                 |
+| `--verbose`      | Verbose logging                                                        |
+
+## Health checks
+
+The registry never probes the tunnel endpoint directly. Instead, when a health
+check is requested (manually via the "Heartbeat" button, or on a schedule), the
+registry sends a `health_check` request through the tunnel and **this agent**
+probes the backend's native health endpoint (`--health-path`) right next to it,
+then reports the normalized status back. This is protocol-agnostic and works for
+both `mcp` and `http-proxy` tunnels — the backend (e.g. OpenSearch) does not need
+to speak MCP. For OpenSearch, `/_cluster/health` is used and the cluster color is
+surfaced (`red` → unhealthy, `green`/`yellow` → healthy).
 
 ## Auto-reconnect
 

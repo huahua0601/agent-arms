@@ -94,7 +94,22 @@ async def check_health(server_id: int, current=Depends(get_current_user), db: As
     server = await svc.get_server(db, server_id)
     if not server: raise HTTPException(404)
 
-    if server.source_type == "managed":
+    if server.tunnel_enabled:
+        # Tunnel-backed server: ask the agent (which sits next to the real
+        # backend) to probe its native health endpoint. Works for both mcp and
+        # http-proxy tunnels regardless of whether the backend speaks MCP.
+        from domain.tunnel.manager import tunnel_registry
+        conn = tunnel_registry.get(server.id)
+        if not conn:
+            result = {"status": "offline", "latency_ms": None, "error": "Tunnel agent not connected"}
+        else:
+            try:
+                result = await conn.send({}, envelope_type="health_check", timeout=15.0)
+                if not isinstance(result, dict) or "status" not in result:
+                    result = {"status": "unhealthy", "latency_ms": None, "error": "Invalid agent response"}
+            except Exception as e:
+                result = {"status": "error", "latency_ms": None, "error": f"Tunnel error: {e}"}
+    elif server.source_type == "managed":
         from domain.registry.mcp_client import health_check_via_agentcore
         result = await health_check_via_agentcore(server.id)
     elif not server.endpoint_url:

@@ -8,6 +8,7 @@ import * as elasticache from 'aws-cdk-lib/aws-elasticache';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
@@ -25,6 +26,7 @@ export interface BackendStackProps extends cdk.StackProps {
 export class BackendStack extends cdk.Stack {
   public readonly service: ecs.IBaseService;
   public readonly cluster: ecs.ICluster;
+  public readonly loadBalancer: elbv2.IApplicationLoadBalancer;
   public readonly loadBalancerDnsName: string;
 
   constructor(scope: Construct, id: string, props: BackendStackProps) {
@@ -95,6 +97,7 @@ export class BackendStack extends cdk.Stack {
     });
 
     this.service = fargateService.service;
+    this.loadBalancer = fargateService.loadBalancer;
     this.loadBalancerDnsName = fargateService.loadBalancer.loadBalancerDnsName;
 
     fargateService.targetGroup.configureHealthCheck({
