@@ -111,9 +111,17 @@ surfaced (`red` → unhealthy, `green`/`yellow` → healthy).
 
 ## Auto-reconnect
 
-The agent automatically reconnects with exponential backoff on network errors
-(up to 30s between attempts). It sends a ping every 30 seconds to keep the
-connection alive.
+The agent maintains a persistent WebSocket and reconnects automatically with
+exponential backoff (1s up to 30s) on any disconnect or error. To detect
+*half-open* / silently-dead connections — e.g. when the registry task is
+replaced during a rolling deploy and no TCP FIN/RST reaches the agent — it
+relies on RFC6455 protocol-level ping/pong: the agent pings every 20s and, if
+no pong arrives within 20s, tears the connection down and reconnects. This
+bounds reconnection to roughly 40s after the registry goes away, instead of
+hanging on a dead socket until an OS-level TCP timeout.
+
+Invalid tokens (close code 4001) and unknown servers (4004) stop the agent
+instead of retrying.
 
 ## Security notes
 

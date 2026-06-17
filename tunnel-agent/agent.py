@@ -30,7 +30,14 @@ logger = logging.getLogger("tunnel-agent")
 
 RECONNECT_DELAY_BASE = 1.0
 RECONNECT_DELAY_MAX = 30.0
-PING_INTERVAL = 30.0
+# WebSocket protocol-level keepalive. The library sends RFC6455 pings every
+# WS_PING_INTERVAL seconds and tears the connection down (raising
+# ConnectionClosed) if no pong arrives within WS_PING_TIMEOUT. This is what
+# lets the agent detect a dead/half-open connection (e.g. the registry task was
+# replaced during a rolling deploy) and reconnect promptly instead of hanging
+# on a silently-dead socket.
+WS_PING_INTERVAL = 20.0
+WS_PING_TIMEOUT = 20.0
 
 # Hop-by-hop headers that should not be forwarded to the local backend.
 _HOP_BY_HOP = {
@@ -90,7 +97,13 @@ class TunnelAgent:
         while not self._shutdown.is_set():
             try:
                 logger.info("Connecting to %s ...", self.ws_url)
-                async with websockets.connect(self.ws_url, max_size=10 * 1024 * 1024) as ws:
+                async with websockets.connect(
+                    self.ws_url,
+                    max_size=10 * 1024 * 1024,
+                    ping_interval=WS_PING_INTERVAL,
+                    ping_timeout=WS_PING_TIMEOUT,
+                    close_timeout=5,
+                ) as ws:
                     self._ws = ws
                     delay = RECONNECT_DELAY_BASE
                     await self._handle_connection(ws)
@@ -138,35 +151,23 @@ class TunnelAgent:
         if welcome.get("type") == "welcome":
             logger.info("[OK] Tunnel established: namespace=%s", welcome.get("namespace"))
 
-        # Start periodic ping
-        ping_task = asyncio.create_task(self._ping_loop(ws))
+        # Liveness is handled by the library's protocol-level ping/pong
+        # (configured in websockets.connect). No application-level ping needed.
+        async for raw in ws:
+            try:
+                envelope = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
 
-        try:
-            async for raw in ws:
-                try:
-                    envelope = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-
-                etype = envelope.get("type")
-                if etype == "request":
-                    asyncio.create_task(self._handle_request(ws, envelope))
-                elif etype == "http_request":
-                    asyncio.create_task(self._handle_http_request(ws, envelope))
-                elif etype == "health_check":
-                    asyncio.create_task(self._handle_health_check(ws, envelope))
-                elif etype == "pong":
-                    pass
-        finally:
-            ping_task.cancel()
-
-    async def _ping_loop(self, ws):
-        try:
-            while not self._shutdown.is_set():
-                await asyncio.sleep(PING_INTERVAL)
-                await ws.send(json.dumps({"type": "ping"}))
-        except Exception:
-            pass
+            etype = envelope.get("type")
+            if etype == "request":
+                asyncio.create_task(self._handle_request(ws, envelope))
+            elif etype == "http_request":
+                asyncio.create_task(self._handle_http_request(ws, envelope))
+            elif etype == "health_check":
+                asyncio.create_task(self._handle_health_check(ws, envelope))
+            elif etype == "pong":
+                pass
 
     async def _handle_request(self, ws, envelope: dict):
         req_id = envelope.get("req_id")

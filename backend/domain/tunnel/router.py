@@ -133,11 +133,12 @@ _HOP_BY_HOP = {
 
 
 @es_proxy_router.api_route(
-    "/es-proxy/{namespace}/{path:path}",
+    "/es-proxy/{namespace_owner}/{namespace_name}/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
 )
 async def es_proxy(
-    namespace: str,
+    namespace_owner: str,
+    namespace_name: str,
     path: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -148,12 +149,16 @@ async def es_proxy(
     is forwarded over the reverse WebSocket tunnel to the private-network tunnel-agent
     (running in `http-proxy` mode), which calls the real backend and returns the response.
 
+    Server namespaces use an ``owner/name`` form (e.g. ``prod/opensearch``), so the
+    namespace spans the first two path segments.
+
     Auth: Authorization: Bearer <api_key> using registry API keys.
     """
     from domain.gateway.auth import authenticate_gateway_request
 
     await authenticate_gateway_request(request, db)
 
+    namespace = f"{namespace_owner}/{namespace_name}"
     server = (await db.execute(
         select(McpServer).where(McpServer.namespace == namespace)
     )).scalar_one_or_none()
